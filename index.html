@@ -29,6 +29,8 @@
   --danger-text: #721c24;
   --info-bg: #cfe2ff;
   --info-text: #084298;
+  --accent-bg: #e7f3ff;
+  --accent-text: #1e5fa8;
   --radius-md: 8px;
   --radius-lg: 12px;
 }
@@ -51,6 +53,8 @@
     --danger-text: #e87b84;
     --info-bg: #1a2b48;
     --info-text: #6b9fd9;
+    --accent-bg: #1a2b48;
+    --accent-text: #6b9fd9;
   }
 }
 
@@ -66,268 +70,44 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.calc-root {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.calc-section {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  margin-bottom: 12px;
-}
-
-.calc-label {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-  display: block;
-}
-
-.calc-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
+.calc-root { max-width: 560px; margin: 0 auto; padding: 16px; }
+.calc-section { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 16px 20px; margin-bottom: 12px; }
+.calc-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+.calc-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .calc-row:last-child { margin-bottom: 0; }
-
-.calc-row input {
-  flex: 3;
-  min-width: 0;
-  font-size: 16px;
-  padding: 10px 12px;
-  background: var(--bg-primary);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: inherit;
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.calc-row input:focus {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.calc-row select {
-  flex: 1;
-  min-width: 0;
-  max-width: 110px;
-  font-size: 14px;
-  padding: 10px 8px;
-  background: var(--bg-primary);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: inherit;
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9a9a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 24px;
-}
-
-.calc-unit {
-  font-size: 13px;
-  color: var(--text-secondary);
-  min-width: 20px;
-  flex-shrink: 0;
-}
-
-.calc-section-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px;
-}
-
-.calc-result-card {
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  border: 0.5px solid var(--border);
-  padding: 20px;
-  margin-top: 8px;
-}
-
-.calc-limit-label {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0 0 4px;
-}
-
-.calc-limit-value {
-  font-size: 32px;
-  font-weight: 500;
-  margin: 0 0 4px;
-  color: var(--text-primary);
-}
-
-.calc-limit-meta {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin: 0;
-}
-
-.calc-divider {
-  border: none;
-  border-top: 0.5px solid var(--border);
-  margin: 16px 0;
-}
-
-.calc-cost-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-  font-size: 14px;
-}
-
-.calc-cost-meta {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin: 0 0 12px;
-}
-
-.calc-verdict {
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin: 12px 0;
-  text-align: center;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.calc-verdict.v-ok {
-  background: var(--success-bg);
-  color: var(--success-text);
-}
-
-.calc-verdict.v-warn {
-  background: var(--warning-bg);
-  color: var(--warning-text);
-}
-
-.calc-verdict.v-bad {
-  background: var(--danger-bg);
-  color: var(--danger-text);
-}
-
-.calc-verdict.v-none {
-  background: var(--bg-secondary);
-  color: var(--text-tertiary);
-  font-weight: 400;
-  font-size: 14px;
-}
-
-.calc-hint {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: -8px 0 12px;
-  text-align: center;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-}
-
-.calc-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.calc-stat {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  padding: 12px;
-}
-
-.calc-stat-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0 0 2px;
-}
-
-.calc-stat-value {
-  font-size: 18px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.calc-stat-value.neg {
-  color: var(--danger-text);
-}
-
-.calc-title {
-  font-size: 20px;
-  font-weight: 500;
-  margin: 0 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.calc-title-icon {
-  width: 28px;
-  height: 28px;
-  background: var(--info-bg);
-  border-radius: var(--radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--info-text);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.calc-reset {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 6px 10px;
-  margin-left: auto;
-  border-radius: var(--radius-md);
-  font-family: inherit;
-}
-
-.calc-reset:active {
-  background: var(--bg-secondary);
-}
-
-.calc-header-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.calc-memory-note {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  text-align: center;
-  margin-top: 8px;
-}
-
-/* iOS Safari 数字入力の矢印を消す */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  -moz-appearance: textfield;
-}
+.calc-row input { flex: 3; min-width: 0; font-size: 16px; padding: 10px 12px; background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; }
+.calc-row input:focus { border-color: var(--border-strong); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+.calc-row select { flex: 1; min-width: 0; max-width: 110px; font-size: 14px; padding: 10px 8px; background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9a9a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
+.calc-unit { font-size: 13px; color: var(--text-secondary); min-width: 20px; flex-shrink: 0; }
+.calc-section-title { font-size: 12px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
+.calc-result-card { background: var(--bg-primary); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 20px; margin-top: 8px; }
+.calc-mode-indicator { font-size: 11px; font-weight: 500; color: var(--accent-text); background: var(--accent-bg); padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 10px; letter-spacing: 0.5px; }
+.calc-limit-label { font-size: 13px; color: var(--text-secondary); margin: 0 0 4px; }
+.calc-limit-value { font-size: 32px; font-weight: 500; margin: 0 0 4px; color: var(--text-primary); }
+.calc-limit-meta { font-size: 12px; color: var(--text-tertiary); margin: 0; }
+.calc-divider { border: none; border-top: 0.5px solid var(--border); margin: 16px 0; }
+.calc-cost-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; font-size: 14px; }
+.calc-cost-meta { font-size: 12px; color: var(--text-tertiary); margin: 0 0 12px; }
+.calc-verdict { border-radius: var(--radius-md); padding: 14px 16px; margin: 12px 0; text-align: center; font-size: 16px; font-weight: 500; }
+.calc-verdict.v-ok { background: var(--success-bg); color: var(--success-text); }
+.calc-verdict.v-warn { background: var(--warning-bg); color: var(--warning-text); }
+.calc-verdict.v-bad { background: var(--danger-bg); color: var(--danger-text); }
+.calc-verdict.v-none { background: var(--bg-secondary); color: var(--text-tertiary); font-weight: 400; font-size: 14px; }
+.calc-hint { font-size: 13px; color: var(--text-secondary); margin: -8px 0 12px; text-align: center; padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-md); }
+.calc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.calc-stat { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; }
+.calc-stat-label { font-size: 12px; color: var(--text-secondary); margin: 0 0 2px; }
+.calc-stat-value { font-size: 18px; font-weight: 500; margin: 0; }
+.calc-stat-value.neg { color: var(--danger-text); }
+.calc-title { font-size: 20px; font-weight: 500; margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
+.calc-title-icon { width: 28px; height: 28px; background: var(--info-bg); border-radius: var(--radius-md); display: inline-flex; align-items: center; justify-content: center; color: var(--info-text); font-size: 16px; font-weight: 500; }
+.calc-reset { font-size: 13px; color: var(--text-tertiary); background: transparent; border: none; cursor: pointer; padding: 6px 10px; margin-left: auto; border-radius: var(--radius-md); font-family: inherit; }
+.calc-reset:active { background: var(--bg-secondary); }
+.calc-header-row { display: flex; align-items: center; margin-bottom: 16px; }
+.calc-memory-note { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 8px; }
+.calc-mode-hint { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 4px; line-height: 1.5; }
+input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
 </style>
 </head>
 <body>
@@ -387,34 +167,57 @@ input[type="number"] {
   </div>
 
   <div class="calc-result-card">
-    <p class="calc-limit-label">仕入れ上限（実質コスト＝商品＋送料）</p>
+    <span class="calc-mode-indicator" id="mode-indicator" style="display: none;">逆算モード</span>
+    <p class="calc-limit-label" id="main-label">仕入れ上限（実質コスト＝商品＋送料）</p>
     <p class="calc-limit-value" id="limit-value">—</p>
     <p class="calc-limit-meta" id="limit-meta">販売想定価格と販売送料を入力してください</p>
 
-    <hr class="calc-divider">
+    <hr class="calc-divider" id="divider">
 
-    <div class="calc-cost-row">
-      <span style="color: var(--text-secondary);">実質仕入れコスト</span>
-      <span id="cost-value" style="font-weight: 500;">—</span>
-    </div>
-    <p class="calc-cost-meta" id="cost-meta"></p>
-
-    <div class="calc-verdict v-none" id="verdict">仕入れ値を入力すると判定されます</div>
-    <div class="calc-hint" id="hint" style="display: none;"></div>
-
-    <div class="calc-stats">
-      <div class="calc-stat">
-        <p class="calc-stat-label">想定利益</p>
-        <p class="calc-stat-value" id="profit-value">—</p>
+    <div id="judgment-section">
+      <div class="calc-cost-row">
+        <span style="color: var(--text-secondary);">実質仕入れコスト</span>
+        <span id="cost-value" style="font-weight: 500;">—</span>
       </div>
-      <div class="calc-stat">
-        <p class="calc-stat-label">ROI</p>
-        <p class="calc-stat-value" id="roi-value">—</p>
+      <p class="calc-cost-meta" id="cost-meta"></p>
+
+      <div class="calc-verdict v-none" id="verdict">仕入れ値を入力すると判定されます</div>
+      <div class="calc-hint" id="hint" style="display: none;"></div>
+
+      <div class="calc-stats">
+        <div class="calc-stat">
+          <p class="calc-stat-label">想定利益</p>
+          <p class="calc-stat-value" id="profit-value">—</p>
+        </div>
+        <div class="calc-stat">
+          <p class="calc-stat-label">ROI</p>
+          <p class="calc-stat-value" id="roi-value">—</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="reverse-section" style="display: none;">
+      <div class="calc-cost-row">
+        <span style="color: var(--text-secondary);">実質仕入れコスト</span>
+        <span id="rev-cost-value" style="font-weight: 500;">—</span>
+      </div>
+      <p class="calc-cost-meta" id="rev-cost-meta"></p>
+
+      <div class="calc-stats">
+        <div class="calc-stat">
+          <p class="calc-stat-label">想定利益</p>
+          <p class="calc-stat-value" id="rev-profit-value">—</p>
+        </div>
+        <div class="calc-stat">
+          <p class="calc-stat-label">ROI</p>
+          <p class="calc-stat-value" id="rev-roi-value">—</p>
+        </div>
       </div>
     </div>
   </div>
 
   <p class="calc-memory-note">※ 販売送料・手数料は自動で記憶されます</p>
+  <p class="calc-mode-hint">販売想定価格を空欄にして仕入れ値を入力すると「最低販売価格」を逆算します</p>
 </div>
 
 <script>
@@ -422,7 +225,7 @@ input[type="number"] {
   const STORAGE_KEY = 'sedori_calc_prefs_v1';
 
   const tiers = [
-    { name: 'A', min: 0, max: 5000, roi: null, minProfit: null, label: 'A帯（仕入れ不可）' },
+    { name: 'A', min: 0, max: 5000, roi: 0.40, minProfit: 1500, label: 'A帯' },
     { name: 'B1', min: 5000, max: 10000, roi: 0.30, minProfit: 2250, label: 'B1帯' },
     { name: 'B2', min: 10000, max: 15000, roi: 0.28, minProfit: 3500, label: 'B2帯' },
     { name: 'C', min: 15000, max: 35000, roi: 0.22, minProfit: 5000, label: 'C帯' },
@@ -438,14 +241,23 @@ input[type="number"] {
     feePreset: document.getElementById('fee-preset'),
     buyPrice: document.getElementById('buy-price'),
     shipIn: document.getElementById('ship-in'),
+    modeIndicator: document.getElementById('mode-indicator'),
+    mainLabel: document.getElementById('main-label'),
     limitValue: document.getElementById('limit-value'),
     limitMeta: document.getElementById('limit-meta'),
+    divider: document.getElementById('divider'),
+    judgmentSection: document.getElementById('judgment-section'),
+    reverseSection: document.getElementById('reverse-section'),
     costValue: document.getElementById('cost-value'),
     costMeta: document.getElementById('cost-meta'),
     verdict: document.getElementById('verdict'),
     hint: document.getElementById('hint'),
     profitValue: document.getElementById('profit-value'),
     roiValue: document.getElementById('roi-value'),
+    revCostValue: document.getElementById('rev-cost-value'),
+    revCostMeta: document.getElementById('rev-cost-meta'),
+    revProfitValue: document.getElementById('rev-profit-value'),
+    revRoiValue: document.getElementById('rev-roi-value'),
     resetBtn: document.getElementById('reset-btn')
   };
 
@@ -462,11 +274,7 @@ input[type="number"] {
 
   function savePrefs() {
     try {
-      const prefs = {
-        shipOut: els.shipOut.value,
-        fee: els.fee.value,
-        shipIn: els.shipIn.value
-      };
+      const prefs = { shipOut: els.shipOut.value, fee: els.fee.value, shipIn: els.shipIn.value };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     } catch (e) {}
   }
@@ -480,13 +288,35 @@ input[type="number"] {
     return tiers.find(t => price >= t.min && price < t.max);
   }
 
-  function resetResults(msg) {
+  function showJudgmentMode() {
+    els.modeIndicator.style.display = 'none';
+    els.judgmentSection.style.display = 'block';
+    els.reverseSection.style.display = 'none';
+    els.divider.style.display = 'block';
+    els.mainLabel.textContent = '仕入れ上限（実質コスト＝商品＋送料）';
+  }
+
+  function showReverseMode() {
+    els.modeIndicator.style.display = 'inline-block';
+    els.modeIndicator.textContent = '🔄 逆算モード';
+    els.judgmentSection.style.display = 'none';
+    els.reverseSection.style.display = 'block';
+    els.divider.style.display = 'block';
+    els.mainLabel.textContent = '最低販売価格（この値段以上で売ればOK）';
+  }
+
+  function showInitialState(msg) {
+    els.modeIndicator.style.display = 'none';
+    els.mainLabel.textContent = '仕入れ上限（実質コスト＝商品＋送料）';
     els.limitValue.textContent = '—';
     els.limitMeta.textContent = msg;
+    els.divider.style.display = 'block';
+    els.judgmentSection.style.display = 'block';
+    els.reverseSection.style.display = 'none';
     els.costValue.textContent = '—';
     els.costMeta.textContent = '';
     els.verdict.className = 'calc-verdict v-none';
-    els.verdict.textContent = '仕入れ値を入力すると判定されます';
+    els.verdict.textContent = '販売想定価格or仕入れ値を入力してください';
     els.hint.style.display = 'none';
     els.profitValue.textContent = '—';
     els.profitValue.classList.remove('neg');
@@ -494,51 +324,11 @@ input[type="number"] {
     els.roiValue.classList.remove('neg');
   }
 
-  function compute() {
-    savePrefs();
-
-    const sellPriceRaw = els.sellPrice.value;
-    const shipOutRaw = els.shipOut.value;
-    const feeRaw = els.fee.value;
-    const buyPriceRaw = els.buyPrice.value;
-    const shipInRaw = els.shipIn.value;
-
-    const sellPrice = parseFloat(sellPriceRaw);
-    const shipOut = parseFloat(shipOutRaw);
-    const feeRate = parseFloat(feeRaw) / 100;
-    const buyPrice = parseFloat(buyPriceRaw);
-    const shipIn = parseFloat(shipInRaw) || 0;
-
-    if (!sellPriceRaw || !sellPrice || sellPrice <= 0) {
-      resetResults('販売想定価格と販売送料を入力してください');
-      return;
-    }
-
-    if (!shipOutRaw || isNaN(shipOut)) {
-      resetResults('販売送料を入力してください（0なら0と入力）');
-      return;
-    }
-
-    if (!feeRaw || isNaN(feeRate)) {
-      resetResults('手数料を入力してください');
-      return;
-    }
+  function computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw) {
+    showJudgmentMode();
 
     const tier = getTier(sellPrice);
     const revenue = sellPrice * (1 - feeRate) - shipOut;
-
-    if (!tier.roi) {
-      els.limitValue.textContent = '仕入れ不可';
-      els.limitMeta.textContent = tier.label + '（5,000円未満は対象外）';
-      els.costValue.textContent = '—';
-      els.costMeta.textContent = '';
-      els.verdict.className = 'calc-verdict v-bad';
-      els.verdict.textContent = '✕ ダメ — A帯は対象外';
-      els.hint.style.display = 'none';
-      els.profitValue.textContent = '—';
-      els.roiValue.textContent = '—';
-      return;
-    }
 
     const roiLimit = revenue / (1 + tier.roi);
     const profitLimit = revenue - tier.minProfit;
@@ -606,24 +396,122 @@ input[type="number"] {
     }
   }
 
+  // 逆算モード: 仕入れ値から最低販売価格を算出
+  function computeReverseMode(buyPrice, shipIn, shipOut, feeRate) {
+    showReverseMode();
+
+    const realCost = buyPrice + shipIn;
+
+    els.revCostValue.textContent = yen(realCost);
+    if (shipIn > 0) {
+      els.revCostMeta.textContent = '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn);
+    } else {
+      els.revCostMeta.textContent = '';
+    }
+
+    let bestResult = null;
+
+    for (const tier of tiers) {
+      const requiredRevenueByRoi = realCost * (1 + tier.roi);
+      const requiredRevenueByProfit = realCost + tier.minProfit;
+      const requiredRevenue = Math.max(requiredRevenueByRoi, requiredRevenueByProfit);
+      const criterionPrice = (requiredRevenue + shipOut) / (1 - feeRate);
+
+      // その帯の最低販売価格 = max(基準クリア価格, 帯のmin価格)
+      let actualMinPrice = Math.max(criterionPrice, tier.min);
+
+      // この価格が、その帯のレンジ内に収まるか確認
+      if (actualMinPrice < tier.max) {
+        let binding;
+        if (criterionPrice <= tier.min) {
+          binding = tier.label + 'の下限 ' + tier.min.toLocaleString() + '円';
+        } else {
+          binding = requiredRevenueByRoi > requiredRevenueByProfit 
+            ? 'ROI ' + Math.round(tier.roi * 100) + '%' 
+            : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
+        }
+        bestResult = { tier, minSellPrice: actualMinPrice, binding, criterionPrice };
+        break;
+      }
+    }
+
+    if (!bestResult) {
+      const tier = tiers[tiers.length - 1];
+      const requiredRevenueByRoi = realCost * (1 + tier.roi);
+      const requiredRevenueByProfit = realCost + tier.minProfit;
+      const requiredRevenue = Math.max(requiredRevenueByRoi, requiredRevenueByProfit);
+      const criterionPrice = (requiredRevenue + shipOut) / (1 - feeRate);
+      const binding = requiredRevenueByRoi > requiredRevenueByProfit 
+        ? 'ROI ' + Math.round(tier.roi * 100) + '%' 
+        : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
+      bestResult = { tier, minSellPrice: criterionPrice, binding, criterionPrice };
+    }
+
+    const { tier, minSellPrice, binding, criterionPrice } = bestResult;
+
+    els.limitValue.textContent = yen(minSellPrice) + ' 以上';
+
+    if (criterionPrice < tier.min) {
+      els.limitMeta.textContent = tier.label + '・' + binding + 'で販売すれば基準クリア（余裕あり）';
+    } else {
+      els.limitMeta.textContent = tier.label + '・' + binding + 'が効いている';
+    }
+
+    const revenue = minSellPrice * (1 - feeRate) - shipOut;
+    const profit = revenue - realCost;
+    const roi = realCost > 0 ? (profit / realCost) * 100 : 0;
+    els.revProfitValue.textContent = yen(profit);
+    els.revProfitValue.classList.toggle('neg', profit < 0);
+    els.revRoiValue.textContent = isFinite(roi) ? roi.toFixed(1) + '%' : '—';
+    els.revRoiValue.classList.toggle('neg', roi < 0);
+  }
+
+  function compute() {
+    savePrefs();
+
+    const sellPriceRaw = els.sellPrice.value;
+    const shipOutRaw = els.shipOut.value;
+    const feeRaw = els.fee.value;
+    const buyPriceRaw = els.buyPrice.value;
+    const shipInRaw = els.shipIn.value;
+
+    const sellPrice = parseFloat(sellPriceRaw);
+    const shipOut = parseFloat(shipOutRaw);
+    const feeRate = parseFloat(feeRaw) / 100;
+    const buyPrice = parseFloat(buyPriceRaw);
+    const shipIn = parseFloat(shipInRaw) || 0;
+
+    const hasSellPrice = sellPriceRaw && sellPrice > 0;
+    const hasBuyPrice = buyPriceRaw && buyPrice > 0;
+
+    if (!shipOutRaw || isNaN(shipOut)) {
+      showInitialState('販売送料を入力してください（0なら0と入力）');
+      return;
+    }
+    if (!feeRaw || isNaN(feeRate)) {
+      showInitialState('手数料を入力してください');
+      return;
+    }
+
+    if (hasSellPrice) {
+      computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw);
+    } else if (hasBuyPrice) {
+      computeReverseMode(buyPrice, shipIn, shipOut, feeRate);
+    } else {
+      showInitialState('販売想定価格or仕入れ値を入力してください');
+    }
+  }
+
   ['sellPrice', 'shipOut', 'fee', 'buyPrice', 'shipIn'].forEach(key => {
     els[key].addEventListener('input', compute);
   });
 
   els.shipOutPreset.addEventListener('change', e => {
-    if (e.target.value) {
-      els.shipOut.value = e.target.value;
-      compute();
-      e.target.value = '';
-    }
+    if (e.target.value) { els.shipOut.value = e.target.value; compute(); e.target.value = ''; }
   });
 
   els.feePreset.addEventListener('change', e => {
-    if (e.target.value) {
-      els.fee.value = e.target.value;
-      compute();
-      e.target.value = '';
-    }
+    if (e.target.value) { els.fee.value = e.target.value; compute(); e.target.value = ''; }
   });
 
   els.resetBtn.addEventListener('click', () => {
