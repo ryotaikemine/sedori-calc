@@ -1,0 +1,26 @@
+{
+  "name": "せどり仕入れ電卓",
+  "short_name": "せどり電卓",
+  "description": "せどり用の仕入れ判定・利益計算ツール",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fafafa",
+  "theme_color": "#f5f5f5",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='42' fill='%232563eb'/><text x='96' y='124' font-family='system-ui' font-size='96' font-weight='600' fill='white' text-anchor='middle'>¥</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%232563eb'/><text x='256' y='332' font-family='system-ui' font-size='256' font-weight='600' fill='white' text-anchor='middle'>¥</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
