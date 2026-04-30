@@ -9,6 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#f5f5f5">
 <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232563eb'/><text x='90' y='115' font-family='system-ui' font-size='90' font-weight='600' fill='white' text-anchor='middle'>¥</text></svg>">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>せどり仕入れ電卓</title>
 <style>
 :root {
@@ -525,5 +526,12 @@ input[type="number"] { -moz-appearance: textfield; }
 })();
 </script>
 
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
