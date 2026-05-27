@@ -350,7 +350,7 @@ h1 .sub {
 
 <div class="cards">
   <div class="card usuri">
-    <div class="card-title">薄利多売 <span class="warn-tag" id="usuri-warn">⚠ 資金不足</span></div>
+    <div class="card-title">薄利多売 <span class="warn-tag" id="usuri-warn">⚠ 破綻</span></div>
     <div class="card-main" id="usuri-final">¥0</div>
     <div class="card-stats">
       <div class="card-stat-label">月平均粗利</div>
@@ -370,7 +370,7 @@ h1 .sub {
     </div>
   </div>
   <div class="card kori">
-    <div class="card-title">厚利小売 <span class="warn-tag" id="kori-warn">⚠ 資金不足</span></div>
+    <div class="card-title">厚利小売 <span class="warn-tag" id="kori-warn">⚠ 破綻</span></div>
     <div class="card-main" id="kori-final">¥0</div>
     <div class="card-stats">
       <div class="card-stat-label">月平均粗利</div>
@@ -390,7 +390,7 @@ h1 .sub {
     </div>
   </div>
   <div class="card mymodel">
-    <div class="card-title">マイモデル <span class="warn-tag" id="mymodel-warn">⚠ 資金不足</span></div>
+    <div class="card-title">マイモデル <span class="warn-tag" id="mymodel-warn">⚠ 破綻</span></div>
     <div class="card-main" id="mymodel-final">¥0</div>
     <div class="card-stats">
       <div class="card-stat-label">月平均粗利</div>
@@ -428,7 +428,8 @@ h1 .sub {
 <button class="reset-btn" id="reset">すべてデフォルトに戻す</button>
 
 <div class="note">
-  <strong>計算ロジック：</strong>日次シミュレーション（360日）。仕入→出品→販売の3段階パイプライン（厳密モデル）。仕入れた商品はまず未出品在庫となり、<strong>月の出品作業キャパ</strong>のペースで出品される。出品後は<strong>平均販売日数</strong>のペースで売れていく。<strong>クリアランス日数</strong>を超えた在庫は値下げ販売（クリアランス値下げ率分の利益減）。手数料は一律10%。生活費は強制引き出し（不足分は借金累積）。<br>
+  <strong>計算ロジック：</strong>日次シミュレーション（360日）。仕入→出品→販売の3段階パイプライン（厳密モデル）。仕入れた商品はまず未出品在庫となり、<strong>月の出品作業キャパ</strong>のペースで出品される。出品後は<strong>平均販売日数</strong>のペースで売れていく。<strong>クリアランス日数</strong>を超えた在庫は値下げ販売（クリアランス値下げ率分の利益減）。手数料は一律10%。<br>
+  <strong>仕入れ資金：</strong>現金が足りない時は<strong>クレカ与信枠</strong>から借入して仕入れる（売上が立ったら返済）。借金がクレカ与信枠を超えた瞬間に<strong>事業破綻</strong>判定（シミュレーション停止）。<br>
   <strong>マイモデル：</strong>自分の現状の数字を入れて、薄利多売・厚利小売と比較できます。<br>
   <strong>スライダー操作：</strong>±ボタンで微調整、数値部分を直接タップして手入力も可能。
 </div>
@@ -442,6 +443,7 @@ h1 .sub {
 const SLIDERS = {
   common: [
     { id: 'capital',       label: '初期資金',           sub: '', min: 0, max: 10000000, step: 10000, default: 100000 },
+    { id: 'creditLimit',   label: 'クレカ与信枠',       sub: '仕入れに使える借入上限', min: 0, max: 5000000, step: 10000, default: 3000000 },
     { id: 'living',        label: '月の生活費',         sub: '毎月引き出し（不足は借金）', min: 0, max: 1000000, step: 1000, default: 0 },
     { id: 'shipping',      label: '平均送料',           sub: '1点あたり', min: 0, max: 3000, step: 10, default: 750 },
     { id: 'clearanceDays', label: 'クリアランス日数',   sub: '何日経過で値下げするか', min: 30, max: 180, step: 5, default: 90, unit: '日' },
@@ -545,9 +547,9 @@ function getSpec(id) {
 }
 
 // =========================================
-// SIMULATION (Strict model + Clearance)
+// SIMULATION (v5: Strict cohort + Clearance + Credit limit + Bankruptcy)
 // =========================================
-function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate, model) {
+function simulate(initCapital, livingCost, shipping, creditLimit, clearanceDays, discountRate, model) {
   const { cost, price, days, cap } = model;
   const feeAmount = price * FEE_RATE;
   const profitPerUnit = price - feeAmount - shipping - cost;
@@ -560,12 +562,21 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
   let unlisted = 0;
   let debt = 0;
   let listingBuffer = 0;
-  let cohorts = []; // [{age, qty}, ...]
+  let cohorts = [];
+  let bankruptMonth = null;
 
-  // 初期仕入れ
+  // 初期仕入れ: 現金 + クレカ枠で買えるだけ
   if (cost > 0 && maxUnlisted > 0) {
-    const targetBuy = Math.min(Math.floor(cash / cost), maxUnlisted);
-    cash -= targetBuy * cost;
+    const available = cash + creditLimit;
+    const targetBuy = Math.min(Math.floor(available / cost), maxUnlisted);
+    const spent = targetBuy * cost;
+    if (spent <= cash) {
+      cash -= spent;
+    } else {
+      const fromCredit = spent - cash;
+      cash = 0;
+      debt += fromCredit;
+    }
     unlisted = targetBuy;
   }
 
@@ -577,6 +588,13 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
   let inventoryValueSum = 0;
 
   for (let day = 1; day <= SIM_DAYS; day++) {
+    if (bankruptMonth !== null) {
+      if (day % DAYS_PER_MONTH === 0) {
+        trail.push(trail[trail.length - 1]);
+      }
+      continue;
+    }
+
     const listedQty = cohorts.reduce((s, c) => s + c.qty, 0);
     inventoryValueSum += (listedQty + unlisted) * cost;
 
@@ -599,7 +617,6 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
       if (c.qty <= 0.001) continue;
 
       if (c.age >= clearanceDays) {
-        // クリアランス販売: 7日で残りを売り切る
         const sellToday = c.qty / 7;
         const sold = Math.min(sellToday, c.qty);
         const discPrice = price * (1 - discountRate);
@@ -610,7 +627,6 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
         totalClearanceUnits += sold;
         c.qty -= sold;
       } else {
-        // 通常販売
         const sellToday = c.qty / days;
         const sold = Math.min(sellToday, c.qty);
         cash += sold * (price - feeAmount - shipping);
@@ -629,14 +645,25 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
       debt -= payback;
     }
 
-    // 新規仕入れ
-    if (cost > 0 && cash >= cost) {
+    // 新規仕入れ: 現金 + クレカ残枠
+    if (cost > 0) {
       const unlistedRoom = maxUnlisted - unlisted;
       if (unlistedRoom > 0) {
-        const canBuy = Math.min(Math.floor(cash / cost), Math.floor(unlistedRoom));
-        if (canBuy > 0) {
-          cash -= canBuy * cost;
-          unlisted += canBuy;
+        const creditAvailable = Math.max(0, creditLimit - debt);
+        const available = cash + creditAvailable;
+        if (available >= cost) {
+          const canBuy = Math.min(Math.floor(available / cost), Math.floor(unlistedRoom));
+          if (canBuy > 0) {
+            const spent = canBuy * cost;
+            if (spent <= cash) {
+              cash -= spent;
+            } else {
+              const fromCredit = spent - cash;
+              cash = 0;
+              debt += fromCredit;
+            }
+            unlisted += canBuy;
+          }
         }
       }
     }
@@ -645,6 +672,11 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
     if (day % DAYS_PER_MONTH === 0) {
       cash -= livingCost;
       if (cash < 0) { debt += -cash; cash = 0; }
+
+      // 破綻判定
+      if (debt > creditLimit) {
+        bankruptMonth = day / DAYS_PER_MONTH;
+      }
       const listedValue = cohorts.reduce((s, c) => s + c.qty, 0) * cost;
       trail.push(cash + listedValue + unlisted * cost - debt);
     }
@@ -655,9 +687,7 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
   const totalUnits = totalNormalUnits + totalClearanceUnits;
   const gmroi = avgInventory > 0 ? totalProfit / avgInventory : 0;
   const annualROI = initCapital > 0 ? totalProfit / initCapital : 0;
-
-  // 警告: 初期資金 < 仕入価格
-  const insufficientFund = cost > 0 && initCapital < cost;
+  const insufficientFund = false; // クレカ枠あるので資金不足警告は廃止
 
   return {
     trail,
@@ -672,6 +702,8 @@ function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate
     annualROI,
     gmroi,
     insufficientFund,
+    bankruptMonth,
+    finalDebt: debt,
   };
 }
 
@@ -739,6 +771,7 @@ function readState() {
   const get = (id) => +document.getElementById('s-' + id).value;
   return {
     capital: get('capital'),
+    creditLimit: get('creditLimit'),
     living: get('living'),
     shipping: get('shipping'),
     clearanceDays: get('clearanceDays'),
@@ -768,7 +801,13 @@ function updateCard(key, r) {
   setVal(`${key}-units`, Math.round(r.totalUnits).toLocaleString('ja-JP') + '点', false);
   setVal(`${key}-clr`, Math.round(r.totalClearanceUnits).toLocaleString('ja-JP') + '点', false);
 
-  document.getElementById(`${key}-warn`).classList.toggle('show', r.insufficientFund);
+  const warnEl = document.getElementById(`${key}-warn`);
+  if (r.bankruptMonth !== null && r.bankruptMonth !== undefined) {
+    warnEl.textContent = `⚠ ${r.bankruptMonth}ヶ月目で破綻`;
+    warnEl.classList.add('show');
+  } else {
+    warnEl.classList.remove('show');
+  }
 }
 
 function update() {
@@ -783,9 +822,9 @@ function update() {
     }
   }
 
-  const rU = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.usuri);
-  const rK = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.kori);
-  const rM = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.mymodel);
+  const rU = simulate(s.capital, s.living, s.shipping, s.creditLimit, s.clearanceDays, s.discountRate, s.usuri);
+  const rK = simulate(s.capital, s.living, s.shipping, s.creditLimit, s.clearanceDays, s.discountRate, s.kori);
+  const rM = simulate(s.capital, s.living, s.shipping, s.creditLimit, s.clearanceDays, s.discountRate, s.mymodel);
 
   chart.data.datasets[0].data = rU.trail;
   chart.data.datasets[1].data = rK.trail;
@@ -796,7 +835,7 @@ function update() {
   updateCard('kori', rK);
   updateCard('mymodel', rM);
 
-  try { localStorage.setItem('sim-state-v4', JSON.stringify(s)); } catch(e){}
+  try { localStorage.setItem('sim-state-v5', JSON.stringify(s)); } catch(e){}
 }
 
 // =========================================
@@ -858,7 +897,7 @@ function setupHandlers() {
 
 function loadSaved() {
   try {
-    const raw = localStorage.getItem('sim-state-v4');
+    const raw = localStorage.getItem('sim-state-v5');
     if (!raw) return;
     const s = JSON.parse(raw);
     const setIfNum = (id, v) => {
@@ -868,6 +907,7 @@ function loadSaved() {
       }
     };
     setIfNum('capital', s.capital);
+    setIfNum('creditLimit', s.creditLimit);
     setIfNum('living', s.living);
     setIfNum('shipping', s.shipping);
     setIfNum('clearanceDays', s.clearanceDays);
