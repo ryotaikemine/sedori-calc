@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0ea5e9">
+<title>小売ビジネスモデル比較シミュレーター</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-card: #161616;
+  --bg-elevated: #1f1f1f;
+  --border: #2a2a2a;
+  --text: #f5f5f5;
+  --text-dim: #888;
+  --text-faint: #555;
+  --usuri: #5ab0ff;
+  --kori: #4ade80;
+  --mymodel: #fbbf24;
+  --accent: #0ea5e9;
+  --danger: #f87171;
+  --warning: #fb923c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+h1 .sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+.chart-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 12px 12px;
+  margin-bottom: 16px;
+}
+.legend {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.chart-container {
+  position: relative;
+  height: 280px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+@media (min-width: 600px) {
+  .cards { grid-template-columns: repeat(3, 1fr); }
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.card.usuri::before { background: var(--usuri); }
+.card.kori::before { background: var(--kori); }
+.card.mymodel::before { background: var(--mymodel); }
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card.usuri .card-title { color: var(--usuri); }
+.card.kori .card-title { color: var(--kori); }
+.card.mymodel .card-title { color: var(--mymodel); }
+.warn-tag {
+  font-size: 9px;
+  background: rgba(251, 146, 60, 0.15);
+  color: var(--warning);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0;
+  display: none;
+}
+.warn-tag.show { display: inline-block; }
+
+.card-main {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+.card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 11px;
+}
+.card-stat-label { color: var(--text-faint); }
+.card-stat-value {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  color: var(--text);
+}
+.card-stat-value.negative { color: var(--danger); }
+.card-main.negative { color: var(--danger); }
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  margin: 24px 0 10px;
+  padding-left: 4px;
+  text-transform: uppercase;
+}
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 14px;
+}
+.panel.usuri { border-left: 3px solid var(--usuri); }
+.panel.kori { border-left: 3px solid var(--kori); }
+.panel.mymodel { border-left: 3px solid var(--mymodel); }
+
+.slider-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.slider-row:last-child { border-bottom: none; }
+.slider-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+.slider-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.3;
+  flex: 1;
+}
+.slider-label-sub {
+  display: block;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.slider-value-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.step-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.step-btn:active {
+  background: var(--border);
+  transform: scale(0.95);
+}
+.slider-value-input {
+  width: 95px;
+  height: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 6px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.slider-value-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.slider-input {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  outline: none;
+}
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.slider-input::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  border: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+.panel.usuri .panel-header { color: var(--usuri); }
+.panel.kori .panel-header { color: var(--kori); }
+.panel.mymodel .panel-header { color: var(--mymodel); }
+.panel-sub {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.reset-btn {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.reset-btn:active { background: var(--bg-elevated); }
+
+.note {
+  margin-top: 24px;
+  padding: 14px;
+  background: rgba(14, 165, 233, 0.05);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+.note strong { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>
+    小売ビジネスモデル比較シミュレーター
+    <span class="sub">RETAIL BUSINESS MODEL SIMULATOR</span>
+  </h1>
+</header>
+
+<div class="chart-section">
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:var(--usuri)"></span>薄利多売</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--kori)"></span>厚利小売</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--mymodel)"></span>マイモデル</div>
+  </div>
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card usuri">
+    <div class="card-title">薄利多売 <span class="warn-tag" id="usuri-warn">⚠ 資金不足</span></div>
+    <div class="card-main" id="usuri-final">¥0</div>
+    <div class="card-stats">
+      <div class="card-stat-label">月平均粗利</div>
+      <div class="card-stat-value" id="usuri-monthly">¥0</div>
+      <div class="card-stat-label">月平均純利益</div>
+      <div class="card-stat-value" id="usuri-net">¥0</div>
+      <div class="card-stat-label">年間ROI</div>
+      <div class="card-stat-value" id="usuri-aroi">0%</div>
+      <div class="card-stat-label">1点ROI</div>
+      <div class="card-stat-value" id="usuri-roi">0%</div>
+      <div class="card-stat-label">GMROI</div>
+      <div class="card-stat-value" id="usuri-gmroi">0%</div>
+      <div class="card-stat-label">年間販売数</div>
+      <div class="card-stat-value" id="usuri-units">0点</div>
+      <div class="card-stat-label">クリアランス販売</div>
+      <div class="card-stat-value" id="usuri-clr">0点</div>
+    </div>
+  </div>
+  <div class="card kori">
+    <div class="card-title">厚利小売 <span class="warn-tag" id="kori-warn">⚠ 資金不足</span></div>
+    <div class="card-main" id="kori-final">¥0</div>
+    <div class="card-stats">
+      <div class="card-stat-label">月平均粗利</div>
+      <div class="card-stat-value" id="kori-monthly">¥0</div>
+      <div class="card-stat-label">月平均純利益</div>
+      <div class="card-stat-value" id="kori-net">¥0</div>
+      <div class="card-stat-label">年間ROI</div>
+      <div class="card-stat-value" id="kori-aroi">0%</div>
+      <div class="card-stat-label">1点ROI</div>
+      <div class="card-stat-value" id="kori-roi">0%</div>
+      <div class="card-stat-label">GMROI</div>
+      <div class="card-stat-value" id="kori-gmroi">0%</div>
+      <div class="card-stat-label">年間販売数</div>
+      <div class="card-stat-value" id="kori-units">0点</div>
+      <div class="card-stat-label">クリアランス販売</div>
+      <div class="card-stat-value" id="kori-clr">0点</div>
+    </div>
+  </div>
+  <div class="card mymodel">
+    <div class="card-title">マイモデル <span class="warn-tag" id="mymodel-warn">⚠ 資金不足</span></div>
+    <div class="card-main" id="mymodel-final">¥0</div>
+    <div class="card-stats">
+      <div class="card-stat-label">月平均粗利</div>
+      <div class="card-stat-value" id="mymodel-monthly">¥0</div>
+      <div class="card-stat-label">月平均純利益</div>
+      <div class="card-stat-value" id="mymodel-net">¥0</div>
+      <div class="card-stat-label">年間ROI</div>
+      <div class="card-stat-value" id="mymodel-aroi">0%</div>
+      <div class="card-stat-label">1点ROI</div>
+      <div class="card-stat-value" id="mymodel-roi">0%</div>
+      <div class="card-stat-label">GMROI</div>
+      <div class="card-stat-value" id="mymodel-gmroi">0%</div>
+      <div class="card-stat-label">年間販売数</div>
+      <div class="card-stat-value" id="mymodel-units">0点</div>
+      <div class="card-stat-label">クリアランス販売</div>
+      <div class="card-stat-value" id="mymodel-clr">0点</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">共通設定</div>
+<div class="panel" id="panel-common"></div>
+
+<div class="section-title">モデル別設定</div>
+<div class="panel usuri" id="panel-usuri">
+  <div class="panel-header">薄利多売<span class="panel-sub">USURI - 低単価・高回転</span></div>
+</div>
+<div class="panel kori" id="panel-kori" style="margin-top:10px">
+  <div class="panel-header">厚利小売<span class="panel-sub">KORI - 高単価・低回転</span></div>
+</div>
+<div class="panel mymodel" id="panel-mymodel" style="margin-top:10px">
+  <div class="panel-header">マイモデル<span class="panel-sub">MY MODEL - 自分の数字</span></div>
+</div>
+
+<button class="reset-btn" id="reset">すべてデフォルトに戻す</button>
+
+<div class="note">
+  <strong>計算ロジック：</strong>日次シミュレーション（360日）。仕入→出品→販売の3段階パイプライン（厳密モデル）。仕入れた商品はまず未出品在庫となり、<strong>月の出品作業キャパ</strong>のペースで出品される。出品後は<strong>平均販売日数</strong>のペースで売れていく。<strong>クリアランス日数</strong>を超えた在庫は値下げ販売（クリアランス値下げ率分の利益減）。手数料は一律10%。生活費は強制引き出し（不足分は借金累積）。<br>
+  <strong>マイモデル：</strong>自分の現状の数字を入れて、薄利多売・厚利小売と比較できます。<br>
+  <strong>スライダー操作：</strong>±ボタンで微調整、数値部分を直接タップして手入力も可能。
+</div>
+
+</div>
+
+<script>
+// =========================================
+// SLIDER DEFINITIONS
+// =========================================
+const SLIDERS = {
+  common: [
+    { id: 'capital',       label: '初期資金',           sub: '', min: 0, max: 10000000, step: 10000, default: 100000 },
+    { id: 'living',        label: '月の生活費',         sub: '毎月引き出し（不足は借金）', min: 0, max: 1000000, step: 1000, default: 0 },
+    { id: 'shipping',      label: '平均送料',           sub: '1点あたり', min: 0, max: 3000, step: 10, default: 750 },
+    { id: 'clearanceDays', label: 'クリアランス日数',   sub: '何日経過で値下げするか', min: 30, max: 180, step: 5, default: 90, unit: '日' },
+    { id: 'discountRate',  label: 'クリアランス値下げ率', sub: '値下げ販売時の割引', min: 0, max: 70, step: 5, default: 30, unit: '%' },
+  ],
+  usuri: [
+    { id: 'usuri-cost',  label: '仕入価格', sub: '', min: 0, max: 20000, step: 100, default: 1000 },
+    { id: 'usuri-price', label: '販売価格', sub: '', min: 0, max: 50000, step: 100, default: 2500 },
+    { id: 'usuri-days',  label: '平均販売日数', sub: '出品から売れるまで', min: 1, max: 365, step: 1, default: 7, unit: '日' },
+    { id: 'usuri-cap',   label: '月の出品作業キャパ', sub: '人手含む月の出品上限', min: 1, max: 1000, step: 1, default: 150, unit: '点' },
+  ],
+  kori: [
+    { id: 'kori-cost',  label: '仕入価格', sub: '', min: 0, max: 500000, step: 500, default: 30000 },
+    { id: 'kori-price', label: '販売価格', sub: '', min: 0, max: 1000000, step: 500, default: 80000 },
+    { id: 'kori-days',  label: '平均販売日数', sub: '出品から売れるまで', min: 1, max: 365, step: 1, default: 60, unit: '日' },
+    { id: 'kori-cap',   label: '月の出品作業キャパ', sub: '人手含む月の出品上限', min: 1, max: 500, step: 1, default: 30, unit: '点' },
+  ],
+  mymodel: [
+    { id: 'mymodel-cost',  label: '仕入価格', sub: '', min: 0, max: 200000, step: 100, default: 8000 },
+    { id: 'mymodel-price', label: '販売価格', sub: '', min: 0, max: 500000, step: 100, default: 25000 },
+    { id: 'mymodel-days',  label: '平均販売日数', sub: '出品から売れるまで', min: 1, max: 365, step: 1, default: 45, unit: '日' },
+    { id: 'mymodel-cap',   label: '月の出品作業キャパ', sub: '人手含む月の出品上限', min: 1, max: 500, step: 1, default: 100, unit: '点' },
+  ],
+};
+
+const ALL_SLIDERS = [...SLIDERS.common, ...SLIDERS.usuri, ...SLIDERS.kori, ...SLIDERS.mymodel];
+
+const FEE_RATE = 0.10;
+const SIM_DAYS = 360;
+const MONTHS = 12;
+const DAYS_PER_MONTH = 30;
+
+// =========================================
+// FORMATTERS
+// =========================================
+const fmtYen = (n) => {
+  const v = Math.round(n);
+  return (v < 0 ? '-' : '') + '¥' + Math.abs(v).toLocaleString('ja-JP');
+};
+const fmtYenShort = (n) => {
+  n = Math.round(n);
+  const sign = n < 0 ? '-' : '';
+  n = Math.abs(n);
+  if (n >= 100000000) return sign + '¥' + (n/100000000).toFixed(2) + '億';
+  if (n >= 10000) return sign + '¥' + (n/10000).toFixed(1) + '万';
+  return sign + '¥' + n.toLocaleString('ja-JP');
+};
+const fmtPct = (n) => (n * 100).toFixed(1) + '%';
+
+// =========================================
+// BUILD UI
+// =========================================
+function buildSlider(spec) {
+  return `
+    <div class="slider-row" data-id="${spec.id}">
+      <div class="slider-top">
+        <div class="slider-label">${spec.label}${spec.sub ? `<span class="slider-label-sub">${spec.sub}</span>` : ''}</div>
+        <div class="slider-value-group">
+          <button class="step-btn" data-action="dec" data-target="${spec.id}">−</button>
+          <input type="text" class="slider-value-input" id="t-${spec.id}" inputmode="numeric">
+          <button class="step-btn" data-action="inc" data-target="${spec.id}">＋</button>
+        </div>
+      </div>
+      <input type="range" class="slider-input" id="s-${spec.id}" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}">
+    </div>
+  `;
+}
+
+function renderPanels() {
+  document.getElementById('panel-common').innerHTML = SLIDERS.common.map(buildSlider).join('');
+  document.getElementById('panel-usuri').insertAdjacentHTML('beforeend', SLIDERS.usuri.map(buildSlider).join(''));
+  document.getElementById('panel-kori').insertAdjacentHTML('beforeend', SLIDERS.kori.map(buildSlider).join(''));
+  document.getElementById('panel-mymodel').insertAdjacentHTML('beforeend', SLIDERS.mymodel.map(buildSlider).join(''));
+}
+
+function formatValue(spec, value) {
+  if (spec.unit === '日') return value + '日';
+  if (spec.unit === '点') return value + '点';
+  if (spec.unit === '%') return value + '%';
+  return '¥' + Number(value).toLocaleString('ja-JP');
+}
+
+function parseValue(spec, text) {
+  const cleaned = String(text).replace(/[^\d]/g, '');
+  let v = parseInt(cleaned, 10);
+  if (isNaN(v)) v = spec.default;
+  if (v < spec.min) v = spec.min;
+  if (v > spec.max) v = spec.max;
+  return v;
+}
+
+function setSliderValue(spec, value) {
+  const slider = document.getElementById('s-' + spec.id);
+  const text = document.getElementById('t-' + spec.id);
+  slider.value = value;
+  text.value = formatValue(spec, value);
+}
+
+function getSpec(id) {
+  return ALL_SLIDERS.find(s => s.id === id);
+}
+
+// =========================================
+// SIMULATION (Strict model + Clearance)
+// =========================================
+function simulate(initCapital, livingCost, shipping, clearanceDays, discountRate, model) {
+  const { cost, price, days, cap } = model;
+  const feeAmount = price * FEE_RATE;
+  const profitPerUnit = price - feeAmount - shipping - cost;
+  const roiPerUnit = cost > 0 ? profitPerUnit / cost : 0;
+  const dailyListingCap = cap / DAYS_PER_MONTH;
+  const maxListedInventory = dailyListingCap > 0 ? Math.max(1, Math.floor(dailyListingCap * days)) : 0;
+  const maxUnlisted = maxListedInventory * 2;
+
+  let cash = initCapital;
+  let unlisted = 0;
+  let debt = 0;
+  let listingBuffer = 0;
+  let cohorts = []; // [{age, qty}, ...]
+
+  // 初期仕入れ
+  if (cost > 0 && maxUnlisted > 0) {
+    const targetBuy = Math.min(Math.floor(cash / cost), maxUnlisted);
+    cash -= targetBuy * cost;
+    unlisted = targetBuy;
+  }
+
+  const trail = [initCapital];
+  let totalNormalProfit = 0;
+  let totalClearanceProfit = 0;
+  let totalNormalUnits = 0;
+  let totalClearanceUnits = 0;
+  let inventoryValueSum = 0;
+
+  for (let day = 1; day <= SIM_DAYS; day++) {
+    const listedQty = cohorts.reduce((s, c) => s + c.qty, 0);
+    inventoryValueSum += (listedQty + unlisted) * cost;
+
+    // 出品作業
+    listingBuffer += dailyListingCap;
+    const room = maxListedInventory - listedQty;
+    const listMax = Math.floor(listingBuffer);
+    const listToday = Math.min(listMax, unlisted, Math.max(0, Math.floor(room)));
+    if (listToday > 0) {
+      listingBuffer -= listToday;
+      unlisted -= listToday;
+      cohorts.push({ age: 0, qty: listToday });
+    }
+    if (listingBuffer > dailyListingCap * 7) listingBuffer = dailyListingCap * 7;
+
+    // 販売
+    const newCohorts = [];
+    for (const c of cohorts) {
+      c.age += 1;
+      if (c.qty <= 0.001) continue;
+
+      if (c.age >= clearanceDays) {
+        // クリアランス販売: 7日で残りを売り切る
+        const sellToday = c.qty / 7;
+        const sold = Math.min(sellToday, c.qty);
+        const discPrice = price * (1 - discountRate);
+        const discFee = discPrice * FEE_RATE;
+        const discProfit = discPrice - discFee - shipping - cost;
+        cash += sold * (discPrice - discFee - shipping);
+        totalClearanceProfit += sold * discProfit;
+        totalClearanceUnits += sold;
+        c.qty -= sold;
+      } else {
+        // 通常販売
+        const sellToday = c.qty / days;
+        const sold = Math.min(sellToday, c.qty);
+        cash += sold * (price - feeAmount - shipping);
+        totalNormalProfit += sold * profitPerUnit;
+        totalNormalUnits += sold;
+        c.qty -= sold;
+      }
+      if (c.qty > 0.001) newCohorts.push(c);
+    }
+    cohorts = newCohorts;
+
+    // 借金返済
+    if (debt > 0 && cash > 0) {
+      const payback = Math.min(cash, debt);
+      cash -= payback;
+      debt -= payback;
+    }
+
+    // 新規仕入れ
+    if (cost > 0 && cash >= cost) {
+      const unlistedRoom = maxUnlisted - unlisted;
+      if (unlistedRoom > 0) {
+        const canBuy = Math.min(Math.floor(cash / cost), Math.floor(unlistedRoom));
+        if (canBuy > 0) {
+          cash -= canBuy * cost;
+          unlisted += canBuy;
+        }
+      }
+    }
+
+    // 月末
+    if (day % DAYS_PER_MONTH === 0) {
+      cash -= livingCost;
+      if (cash < 0) { debt += -cash; cash = 0; }
+      const listedValue = cohorts.reduce((s, c) => s + c.qty, 0) * cost;
+      trail.push(cash + listedValue + unlisted * cost - debt);
+    }
+  }
+
+  const avgInventory = inventoryValueSum / SIM_DAYS;
+  const totalProfit = totalNormalProfit + totalClearanceProfit;
+  const totalUnits = totalNormalUnits + totalClearanceUnits;
+  const gmroi = avgInventory > 0 ? totalProfit / avgInventory : 0;
+  const annualROI = initCapital > 0 ? totalProfit / initCapital : 0;
+
+  // 警告: 初期資金 < 仕入価格
+  const insufficientFund = cost > 0 && initCapital < cost;
+
+  return {
+    trail,
+    finalCapital: trail[trail.length - 1],
+    totalProfit,
+    totalUnits,
+    totalClearanceUnits,
+    grossMonthly: totalProfit / MONTHS,
+    netMonthly: totalProfit / MONTHS - livingCost,
+    profitPerUnit,
+    roiPerUnit,
+    annualROI,
+    gmroi,
+    insufficientFund,
+  };
+}
+
+// =========================================
+// CHART
+// =========================================
+let chart;
+function initChart() {
+  const ctx = document.getElementById('chart').getContext('2d');
+  const labels = Array.from({length: MONTHS + 1}, (_, i) => i + 'M');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '薄利多売', data: [], borderColor: 'rgb(90,176,255)', backgroundColor: 'rgba(90,176,255,0.1)', borderWidth: 2.5, tension: 0.25, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: 'rgb(90,176,255)' },
+        { label: '厚利小売', data: [], borderColor: 'rgb(74,222,128)', backgroundColor: 'rgba(74,222,128,0.1)', borderWidth: 2.5, tension: 0.25, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: 'rgb(74,222,128)' },
+        { label: 'マイモデル', data: [], borderColor: 'rgb(251,191,36)', backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 2.5, tension: 0.25, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: 'rgb(251,191,36)' },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1f1f1f',
+          borderColor: '#2a2a2a',
+          borderWidth: 1,
+          titleFont: { family: "'Zen Kaku Gothic New', sans-serif", size: 12 },
+          bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+          padding: 10,
+          callbacks: {
+            title: (items) => items[0].label.replace('M', 'ヶ月後'),
+            label: (item) => ' ' + item.dataset.label + ': ' + fmtYen(item.parsed.y),
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#666', font: { family: "'JetBrains Mono', monospace", size: 10 } }
+        },
+        y: {
+          grid: {
+            color: (ctx) => ctx.tick.value === 0 ? 'rgba(248,113,113,0.4)' : 'rgba(255,255,255,0.06)',
+            lineWidth: (ctx) => ctx.tick.value === 0 ? 1.5 : 1,
+          },
+          ticks: {
+            color: '#888',
+            font: { family: "'JetBrains Mono', monospace", size: 10 },
+            callback: (v) => fmtYenShort(v),
+          }
+        }
+      }
+    }
+  });
+}
+
+// =========================================
+// UPDATE
+// =========================================
+function readState() {
+  const get = (id) => +document.getElementById('s-' + id).value;
+  return {
+    capital: get('capital'),
+    living: get('living'),
+    shipping: get('shipping'),
+    clearanceDays: get('clearanceDays'),
+    discountRate: get('discountRate') / 100,
+    usuri:   { cost: get('usuri-cost'),   price: get('usuri-price'),   days: get('usuri-days'),   cap: get('usuri-cap') },
+    kori:    { cost: get('kori-cost'),    price: get('kori-price'),    days: get('kori-days'),    cap: get('kori-cap') },
+    mymodel: { cost: get('mymodel-cost'), price: get('mymodel-price'), days: get('mymodel-days'), cap: get('mymodel-cap') },
+  };
+}
+
+function updateCard(key, r) {
+  const finalEl = document.getElementById(`${key}-final`);
+  finalEl.textContent = fmtYen(r.finalCapital);
+  finalEl.classList.toggle('negative', r.finalCapital < 0);
+
+  const setVal = (id, text, isNeg) => {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.classList.toggle('negative', isNeg);
+  };
+
+  setVal(`${key}-monthly`, fmtYen(r.grossMonthly), r.grossMonthly < 0);
+  setVal(`${key}-net`, fmtYen(r.netMonthly), r.netMonthly < 0);
+  setVal(`${key}-aroi`, fmtPct(r.annualROI), r.annualROI < 0);
+  setVal(`${key}-roi`, fmtPct(r.roiPerUnit), r.roiPerUnit < 0);
+  setVal(`${key}-gmroi`, fmtPct(r.gmroi), false);
+  setVal(`${key}-units`, Math.round(r.totalUnits).toLocaleString('ja-JP') + '点', false);
+  setVal(`${key}-clr`, Math.round(r.totalClearanceUnits).toLocaleString('ja-JP') + '点', false);
+
+  document.getElementById(`${key}-warn`).classList.toggle('show', r.insufficientFund);
+}
+
+function update() {
+  const s = readState();
+
+  // Sync text inputs
+  for (const spec of ALL_SLIDERS) {
+    const val = +document.getElementById('s-' + spec.id).value;
+    const textEl = document.getElementById('t-' + spec.id);
+    if (document.activeElement !== textEl) {
+      textEl.value = formatValue(spec, val);
+    }
+  }
+
+  const rU = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.usuri);
+  const rK = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.kori);
+  const rM = simulate(s.capital, s.living, s.shipping, s.clearanceDays, s.discountRate, s.mymodel);
+
+  chart.data.datasets[0].data = rU.trail;
+  chart.data.datasets[1].data = rK.trail;
+  chart.data.datasets[2].data = rM.trail;
+  chart.update('none');
+
+  updateCard('usuri', rU);
+  updateCard('kori', rK);
+  updateCard('mymodel', rM);
+
+  try { localStorage.setItem('sim-state-v4', JSON.stringify(s)); } catch(e){}
+}
+
+// =========================================
+// HANDLERS
+// =========================================
+function setupHandlers() {
+  document.querySelectorAll('input[type=range]').forEach(slider => {
+    slider.addEventListener('input', update);
+  });
+
+  document.querySelectorAll('.step-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = btn.dataset.target;
+      const action = btn.dataset.action;
+      const spec = getSpec(id);
+      const slider = document.getElementById('s-' + id);
+      let v = +slider.value;
+      v += action === 'inc' ? spec.step : -spec.step;
+      if (v < spec.min) v = spec.min;
+      if (v > spec.max) v = spec.max;
+      slider.value = v;
+      update();
+    });
+  });
+
+  document.querySelectorAll('.slider-value-input').forEach(input => {
+    input.addEventListener('focus', () => {
+      const id = input.id.replace('t-', '');
+      const slider = document.getElementById('s-' + id);
+      input.value = slider.value;
+      input.select();
+    });
+
+    const commit = () => {
+      const id = input.id.replace('t-', '');
+      const spec = getSpec(id);
+      const v = parseValue(spec, input.value);
+      const slider = document.getElementById('s-' + id);
+      const stepped = Math.round(v / spec.step) * spec.step;
+      slider.value = Math.max(spec.min, Math.min(spec.max, stepped));
+      input.value = formatValue(spec, +slider.value);
+      update();
+    };
+
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const spec of ALL_SLIDERS) {
+      setSliderValue(spec, spec.default);
+    }
+    update();
+  });
+}
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem('sim-state-v4');
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    const setIfNum = (id, v) => {
+      if (typeof v === 'number') {
+        const el = document.getElementById('s-' + id);
+        if (el) el.value = v;
+      }
+    };
+    setIfNum('capital', s.capital);
+    setIfNum('living', s.living);
+    setIfNum('shipping', s.shipping);
+    setIfNum('clearanceDays', s.clearanceDays);
+    if (typeof s.discountRate === 'number') {
+      const el = document.getElementById('s-discountRate');
+      if (el) el.value = s.discountRate * 100;
+    }
+    for (const m of ['usuri', 'kori', 'mymodel']) {
+      if (s[m]) {
+        setIfNum(m + '-cost', s[m].cost);
+        setIfNum(m + '-price', s[m].price);
+        setIfNum(m + '-days', s[m].days);
+        setIfNum(m + '-cap', s[m].cap);
+      }
+    }
+  } catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderPanels();
+  for (const spec of ALL_SLIDERS) setSliderValue(spec, spec.default);
+  loadSaved();
+  initChart();
+  setupHandlers();
+  update();
+
+  // PWA registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+});
+</script>
+</body>
+</html>
