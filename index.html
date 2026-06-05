@@ -122,12 +122,51 @@ input[type="number"] { -moz-appearance: textfield; }
 .calc-binding-pill.target-active { background: var(--target-bg); color: var(--target-text); }
 .calc-binding-summary { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-md); text-align: center; line-height: 1.5; }
 .calc-binding-summary b { color: var(--text-primary); }
+
+/* 設定ボタン・バッジ */
+.calc-icon-btn { font-size: 18px; background: transparent; border: none; cursor: pointer; padding: 6px 10px; border-radius: var(--radius-md); font-family: inherit; margin-left: auto; }
+.calc-icon-btn:active { background: var(--bg-secondary); }
+.calc-custom-badge { font-size: 10px; font-weight: 600; color: var(--target-text); background: var(--target-bg); padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; letter-spacing: 0.3px; }
+
+/* 設定画面 */
+.settings-page { display: none; }
+.settings-page.active { display: block; }
+.calc-main.hidden { display: none; }
+.settings-header { display: flex; align-items: center; margin-bottom: 16px; gap: 10px; }
+.settings-back-btn { font-size: 14px; background: transparent; border: none; cursor: pointer; padding: 6px 10px; border-radius: var(--radius-md); font-family: inherit; color: var(--accent-text); }
+.settings-back-btn:active { background: var(--bg-secondary); }
+.settings-title { font-size: 18px; font-weight: 500; margin: 0; }
+.settings-status { font-size: 12px; padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: 12px; text-align: center; color: var(--text-secondary); }
+.settings-status.is-custom { background: var(--target-bg); color: var(--target-text); font-weight: 500; }
+.tier-card { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 10px; }
+.tier-card-header { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
+.tier-card-range { font-size: 11px; color: var(--text-tertiary); margin: 0 0 10px; }
+.tier-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tier-input-group label { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 3px; }
+.tier-input-row { display: flex; align-items: center; gap: 4px; }
+.tier-input-row input { flex: 1; min-width: 0; font-size: 15px; padding: 8px 10px; background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; }
+.tier-input-row input:focus { border-color: var(--border-strong); }
+.tier-input-row .calc-unit { font-size: 12px; }
+.settings-actions { display: flex; gap: 8px; margin-top: 16px; flex-direction: column; }
+.btn-primary, .btn-secondary, .btn-tertiary { font-size: 15px; padding: 12px 16px; border-radius: var(--radius-md); border: none; cursor: pointer; font-family: inherit; font-weight: 500; }
+.btn-primary { background: var(--info-text); color: white; }
+.btn-primary:active { opacity: 0.8; }
+.btn-secondary { background: var(--bg-secondary); color: var(--text-primary); }
+.btn-secondary:active { background: var(--bg-tertiary); }
+.btn-tertiary { background: transparent; color: var(--danger-text); border: 0.5px solid var(--danger-text); }
+.btn-tertiary:active { background: var(--danger-bg); }
+.settings-note { font-size: 11px; color: var(--text-tertiary); margin-top: 12px; text-align: center; line-height: 1.6; }
 </style>
 </head>
 <body>
 <div class="calc-root">
+  <div class="calc-main" id="calc-main">
   <div class="calc-header-row">
-    <h1 class="calc-title"><span class="calc-title-icon">¥</span>せどり仕入れ電卓</h1>
+    <h1 class="calc-title">
+      <span class="calc-title-icon">¥</span>せどり仕入れ電卓
+      <span class="calc-custom-badge" id="custom-badge" style="display: none;">カスタム</span>
+    </h1>
+    <button class="calc-icon-btn" id="settings-btn" aria-label="設定">⚙️</button>
     <button class="calc-reset" id="reset-btn">リセット</button>
   </div>
 
@@ -241,13 +280,30 @@ input[type="number"] { -moz-appearance: textfield; }
 
   <p class="calc-memory-note">※ 販売送料・手数料・目標利益額は自動で記憶されます</p>
   <p class="calc-mode-hint">販売想定価格を空欄にして仕入れ値を入力すると「最低販売価格」を逆算します<br>目標利益額を入れると、ティア基準と並べて目標利益基準も表示します</p>
+  </div><!-- /.calc-main -->
+
+  <div class="settings-page" id="settings-page">
+    <div class="settings-header">
+      <button class="settings-back-btn" id="settings-back-btn">← 戻る</button>
+      <h2 class="settings-title">ティア設定</h2>
+    </div>
+    <div class="settings-status" id="settings-status">現在：デフォルト設定で動作中</div>
+    <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.6;">各ティアのROI基準と最低利益額を編集できます。価格帯の境界は固定です。</p>
+    <div id="tier-cards"></div>
+    <div class="settings-actions">
+      <button class="btn-primary" id="settings-save-btn">保存して電卓に戻る</button>
+      <button class="btn-secondary" id="settings-cancel-btn">キャンセル</button>
+      <button class="btn-tertiary" id="settings-default-btn">デフォルトに戻す</button>
+    </div>
+    <p class="settings-note">「保存」で現在の値が記憶され、次回起動時もこの値が使われます。<br>「デフォルトに戻す」で初期値（A帯ROI40%・最低利益1500円〜）に完全リセットします。</p>
+  </div>
 </div>
 
 <script>
 (function() {
   const STORAGE_KEY = 'sedori_calc_prefs_v2';
 
-  const tiers = [
+  const DEFAULT_TIERS = [
     { name: 'A',  min: 0,     max: 5000,     roi: 0.40, minProfit: 1500,  label: 'A帯' },
     { name: 'B1', min: 5000,  max: 10000,    roi: 0.30, minProfit: 2250,  label: 'B1帯' },
     { name: 'B2', min: 10000, max: 15000,    roi: 0.28, minProfit: 3500,  label: 'B2帯' },
@@ -255,6 +311,9 @@ input[type="number"] { -moz-appearance: textfield; }
     { name: 'D',  min: 35000, max: 80000,    roi: 0.18, minProfit: 8000,  label: 'D帯' },
     { name: 'E',  min: 80000, max: Infinity, roi: 0.13, minProfit: 15000, label: 'E帯' }
   ];
+
+  // 現在使用中のティア（カスタムまたはデフォルトのコピー）
+  let tiers = DEFAULT_TIERS.map(t => ({...t}));
 
   const els = {
     sellPrice: document.getElementById('sell-price'),
@@ -287,7 +346,18 @@ input[type="number"] { -moz-appearance: textfield; }
     revCostMeta: document.getElementById('rev-cost-meta'),
     revProfitValue: document.getElementById('rev-profit-value'),
     revRoiValue: document.getElementById('rev-roi-value'),
-    resetBtn: document.getElementById('reset-btn')
+    resetBtn: document.getElementById('reset-btn'),
+    // 設定関連
+    customBadge: document.getElementById('custom-badge'),
+    settingsBtn: document.getElementById('settings-btn'),
+    settingsPage: document.getElementById('settings-page'),
+    calcMain: document.getElementById('calc-main'),
+    settingsBackBtn: document.getElementById('settings-back-btn'),
+    settingsStatus: document.getElementById('settings-status'),
+    tierCards: document.getElementById('tier-cards'),
+    settingsSaveBtn: document.getElementById('settings-save-btn'),
+    settingsCancelBtn: document.getElementById('settings-cancel-btn'),
+    settingsDefaultBtn: document.getElementById('settings-default-btn')
   };
 
   function loadPrefs() {
@@ -299,6 +369,16 @@ input[type="number"] { -moz-appearance: textfield; }
       if (prefs.fee !== undefined && prefs.fee !== '') els.fee.value = prefs.fee;
       if (prefs.shipIn !== undefined && prefs.shipIn !== '') els.shipIn.value = prefs.shipIn;
       if (prefs.targetProfit !== undefined && prefs.targetProfit !== '') els.targetProfit.value = prefs.targetProfit;
+      // カスタムティアを復元（roi と minProfit のみ）
+      if (prefs.customTiers && Array.isArray(prefs.customTiers)) {
+        prefs.customTiers.forEach(custom => {
+          const target = tiers.find(t => t.name === custom.name);
+          if (target && typeof custom.roi === 'number' && typeof custom.minProfit === 'number') {
+            target.roi = custom.roi;
+            target.minProfit = custom.minProfit;
+          }
+        });
+      }
     } catch (e) {}
   }
   function savePrefs() {
@@ -309,8 +389,27 @@ input[type="number"] { -moz-appearance: textfield; }
         shipIn: els.shipIn.value,
         targetProfit: els.targetProfit.value
       };
+      // カスタムティアが設定されていれば保存
+      if (isTiersCustomized()) {
+        prefs.customTiers = tiers.map(t => ({ name: t.name, roi: t.roi, minProfit: t.minProfit }));
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     } catch (e) {}
+  }
+
+  // 現在のティアがデフォルトと異なるか
+  function isTiersCustomized() {
+    for (let i = 0; i < tiers.length; i++) {
+      if (tiers[i].roi !== DEFAULT_TIERS[i].roi || tiers[i].minProfit !== DEFAULT_TIERS[i].minProfit) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // バッジの表示更新
+  function updateCustomBadge() {
+    els.customBadge.style.display = isTiersCustomized() ? 'inline-block' : 'none';
   }
 
   function yen(n) {
@@ -597,7 +696,108 @@ input[type="number"] { -moz-appearance: textfield; }
     compute();
   });
 
+  // ====== 設定画面ロジック ======
+  // 編集中のティア（保存時にtiersへコピー、キャンセル時に破棄）
+  let editingTiers = [];
+
+  function openSettings() {
+    // 現在のtiersのコピーを編集用バッファに
+    editingTiers = tiers.map(t => ({...t}));
+    renderTierCards();
+    updateSettingsStatus();
+    els.calcMain.classList.add('hidden');
+    els.settingsPage.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  function closeSettings() {
+    els.settingsPage.classList.remove('active');
+    els.calcMain.classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+  function renderTierCards() {
+    const html = editingTiers.map((t, idx) => {
+      const rangeText = t.max === Infinity
+        ? '販売価格 ' + t.min.toLocaleString() + '円〜'
+        : '販売価格 ' + t.min.toLocaleString() + '〜' + (t.max - 1).toLocaleString() + '円';
+      const roiPct = (t.roi * 100).toFixed(1).replace(/\.0$/, '');
+      return '<div class="tier-card">'
+        + '<p class="tier-card-header">' + t.label + '</p>'
+        + '<p class="tier-card-range">' + rangeText + '</p>'
+        + '<div class="tier-inputs">'
+        +   '<div class="tier-input-group">'
+        +     '<label>ROI基準</label>'
+        +     '<div class="tier-input-row">'
+        +       '<input type="number" step="0.1" min="0" max="500" inputmode="decimal" data-idx="' + idx + '" data-field="roi" value="' + roiPct + '">'
+        +       '<span class="calc-unit">%</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="tier-input-group">'
+        +     '<label>最低利益額</label>'
+        +     '<div class="tier-input-row">'
+        +       '<input type="number" step="100" min="0" inputmode="numeric" data-idx="' + idx + '" data-field="minProfit" value="' + t.minProfit + '">'
+        +       '<span class="calc-unit">円</span>'
+        +     '</div>'
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    els.tierCards.innerHTML = html;
+    // 入力イベント
+    els.tierCards.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.idx, 10);
+        const field = e.target.dataset.field;
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val) && val >= 0) {
+          if (field === 'roi') editingTiers[idx].roi = val / 100;
+          else if (field === 'minProfit') editingTiers[idx].minProfit = val;
+        }
+      });
+    });
+  }
+  function updateSettingsStatus() {
+    // editingTiersがデフォルトと異なるか
+    const isDifferent = editingTiers.some((t, i) =>
+      t.roi !== DEFAULT_TIERS[i].roi || t.minProfit !== DEFAULT_TIERS[i].minProfit
+    );
+    if (isDifferent) {
+      els.settingsStatus.textContent = '現在：カスタム設定で動作中';
+      els.settingsStatus.classList.add('is-custom');
+    } else {
+      els.settingsStatus.textContent = '現在：デフォルト設定で動作中';
+      els.settingsStatus.classList.remove('is-custom');
+    }
+  }
+  els.settingsBtn.addEventListener('click', openSettings);
+  els.settingsBackBtn.addEventListener('click', closeSettings);
+  els.settingsCancelBtn.addEventListener('click', closeSettings);
+  els.settingsSaveBtn.addEventListener('click', () => {
+    // editingTiers の値を tiers に反映
+    tiers.forEach((t, i) => {
+      t.roi = editingTiers[i].roi;
+      t.minProfit = editingTiers[i].minProfit;
+    });
+    savePrefs();
+    updateCustomBadge();
+    closeSettings();
+    compute();
+  });
+  els.settingsDefaultBtn.addEventListener('click', () => {
+    if (!confirm('全てのティア設定をデフォルト値に戻します。よろしいですか？')) return;
+    // tiers とeditingTiers の両方をデフォルトに戻す
+    tiers.forEach((t, i) => {
+      t.roi = DEFAULT_TIERS[i].roi;
+      t.minProfit = DEFAULT_TIERS[i].minProfit;
+    });
+    editingTiers = tiers.map(t => ({...t}));
+    renderTierCards();
+    updateSettingsStatus();
+    savePrefs();
+    updateCustomBadge();
+  });
+
   loadPrefs();
+  updateCustomBadge();
   compute();
 })();
 </script>
