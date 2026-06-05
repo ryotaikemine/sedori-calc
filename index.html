@@ -32,10 +32,12 @@
   --info-text: #084298;
   --accent-bg: #e7f3ff;
   --accent-text: #1e5fa8;
+  --target-bg: #fff0e7;
+  --target-text: #b45309;
+  --target-strong: #ea580c;
   --radius-md: 8px;
   --radius-lg: 12px;
 }
-
 @media (prefers-color-scheme: dark) {
   :root {
     --bg-primary: #1c1c1e;
@@ -56,11 +58,12 @@
     --info-text: #6b9fd9;
     --accent-bg: #1a2b48;
     --accent-text: #6b9fd9;
+    --target-bg: #3d2812;
+    --target-text: #e8a66c;
+    --target-strong: #f97316;
   }
 }
-
 * { box-sizing: border-box; }
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
   background: var(--bg-tertiary);
@@ -70,7 +73,6 @@ body {
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
 }
-
 .calc-root { max-width: 560px; margin: 0 auto; padding: 16px; }
 .calc-section { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 16px 20px; margin-bottom: 12px; }
 .calc-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; display: block; }
@@ -109,10 +111,20 @@ body {
 .calc-mode-hint { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 4px; line-height: 1.5; }
 input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
+
+/* 目標利益基準のセカンダリ表示 */
+.calc-target-block { background: var(--target-bg); border-radius: var(--radius-md); padding: 12px 14px; margin-top: 12px; }
+.calc-target-label { font-size: 12px; color: var(--target-text); font-weight: 500; margin: 0 0 2px; letter-spacing: 0.2px; }
+.calc-target-value { font-size: 22px; font-weight: 600; color: var(--target-strong); margin: 0 0 2px; }
+.calc-target-meta { font-size: 11px; color: var(--target-text); opacity: 0.85; margin: 0; }
+.calc-binding-pill { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.3px; }
+.calc-binding-pill.tier-active { background: var(--info-bg); color: var(--info-text); }
+.calc-binding-pill.target-active { background: var(--target-bg); color: var(--target-text); }
+.calc-binding-summary { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-md); text-align: center; line-height: 1.5; }
+.calc-binding-summary b { color: var(--text-primary); }
 </style>
 </head>
 <body>
-
 <div class="calc-root">
   <div class="calc-header-row">
     <h1 class="calc-title"><span class="calc-title-icon">¥</span>せどり仕入れ電卓</h1>
@@ -165,9 +177,9 @@ input[type="number"] { -moz-appearance: textfield; }
       <input type="number" id="ship-in" placeholder="" min="0" step="10" inputmode="numeric" pattern="[0-9]*">
       <span class="calc-unit">円</span>
     </div>
-    <label class="calc-label">目標利益額（任意・逆算用）</label>
+    <label class="calc-label">目標利益額（任意）</label>
     <div class="calc-row">
-      <input type="number" id="target-profit" placeholder="例: 6000" min="0" step="100" inputmode="numeric" pattern="[0-9]*">
+      <input type="number" id="target-profit" placeholder="例: 6000" min="0" step="500" inputmode="numeric" pattern="[0-9]*">
       <span class="calc-unit">円</span>
     </div>
   </div>
@@ -178,6 +190,14 @@ input[type="number"] { -moz-appearance: textfield; }
     <p class="calc-limit-value" id="limit-value">—</p>
     <p class="calc-limit-meta" id="limit-meta">販売想定価格と販売送料を入力してください</p>
 
+    <div id="target-block" class="calc-target-block" style="display: none;">
+      <p class="calc-target-label" id="target-label">目標利益基準の仕入れ上限</p>
+      <p class="calc-target-value" id="target-value">—</p>
+      <p class="calc-target-meta" id="target-meta"></p>
+    </div>
+
+    <p class="calc-binding-summary" id="binding-summary" style="display: none;"></p>
+
     <hr class="calc-divider" id="divider">
 
     <div id="judgment-section">
@@ -186,10 +206,8 @@ input[type="number"] { -moz-appearance: textfield; }
         <span id="cost-value" style="font-weight: 500;">—</span>
       </div>
       <p class="calc-cost-meta" id="cost-meta"></p>
-
       <div class="calc-verdict v-none" id="verdict">仕入れ値を入力すると判定されます</div>
       <div class="calc-hint" id="hint" style="display: none;"></div>
-
       <div class="calc-stats">
         <div class="calc-stat">
           <p class="calc-stat-label">想定利益</p>
@@ -208,7 +226,6 @@ input[type="number"] { -moz-appearance: textfield; }
         <span id="rev-cost-value" style="font-weight: 500;">—</span>
       </div>
       <p class="calc-cost-meta" id="rev-cost-meta"></p>
-
       <div class="calc-stats">
         <div class="calc-stat">
           <p class="calc-stat-label">想定利益</p>
@@ -222,21 +239,21 @@ input[type="number"] { -moz-appearance: textfield; }
     </div>
   </div>
 
-  <p class="calc-memory-note">※ 販売送料・手数料は自動で記憶されます</p>
-  <p class="calc-mode-hint">販売想定価格を空欄にして仕入れ値を入力すると「最低販売価格」を逆算します<br>さらに目標利益額を入れると「その利益が出る販売価格」を逆算します</p>
+  <p class="calc-memory-note">※ 販売送料・手数料・目標利益額は自動で記憶されます</p>
+  <p class="calc-mode-hint">販売想定価格を空欄にして仕入れ値を入力すると「最低販売価格」を逆算します<br>目標利益額を入れると、ティア基準と並べて目標利益基準も表示します</p>
 </div>
 
 <script>
 (function() {
-  const STORAGE_KEY = 'sedori_calc_prefs_v1';
+  const STORAGE_KEY = 'sedori_calc_prefs_v2';
 
   const tiers = [
-    { name: 'A', min: 0, max: 5000, roi: 0.40, minProfit: 1500, label: 'A帯' },
-    { name: 'B1', min: 5000, max: 10000, roi: 0.30, minProfit: 2250, label: 'B1帯' },
-    { name: 'B2', min: 10000, max: 15000, roi: 0.28, minProfit: 3500, label: 'B2帯' },
-    { name: 'C', min: 15000, max: 35000, roi: 0.22, minProfit: 5000, label: 'C帯' },
-    { name: 'D', min: 35000, max: 80000, roi: 0.18, minProfit: 8000, label: 'D帯' },
-    { name: 'E', min: 80000, max: Infinity, roi: 0.13, minProfit: 15000, label: 'E帯' }
+    { name: 'A',  min: 0,     max: 5000,     roi: 0.40, minProfit: 1500,  label: 'A帯' },
+    { name: 'B1', min: 5000,  max: 10000,    roi: 0.30, minProfit: 2250,  label: 'B1帯' },
+    { name: 'B2', min: 10000, max: 15000,    roi: 0.28, minProfit: 3500,  label: 'B2帯' },
+    { name: 'C',  min: 15000, max: 35000,    roi: 0.22, minProfit: 5000,  label: 'C帯' },
+    { name: 'D',  min: 35000, max: 80000,    roi: 0.18, minProfit: 8000,  label: 'D帯' },
+    { name: 'E',  min: 80000, max: Infinity, roi: 0.13, minProfit: 15000, label: 'E帯' }
   ];
 
   const els = {
@@ -252,6 +269,11 @@ input[type="number"] { -moz-appearance: textfield; }
     mainLabel: document.getElementById('main-label'),
     limitValue: document.getElementById('limit-value'),
     limitMeta: document.getElementById('limit-meta'),
+    targetBlock: document.getElementById('target-block'),
+    targetLabel: document.getElementById('target-label'),
+    targetValue: document.getElementById('target-value'),
+    targetMeta: document.getElementById('target-meta'),
+    bindingSummary: document.getElementById('binding-summary'),
     divider: document.getElementById('divider'),
     judgmentSection: document.getElementById('judgment-section'),
     reverseSection: document.getElementById('reverse-section'),
@@ -276,12 +298,17 @@ input[type="number"] { -moz-appearance: textfield; }
       if (prefs.shipOut !== undefined && prefs.shipOut !== '') els.shipOut.value = prefs.shipOut;
       if (prefs.fee !== undefined && prefs.fee !== '') els.fee.value = prefs.fee;
       if (prefs.shipIn !== undefined && prefs.shipIn !== '') els.shipIn.value = prefs.shipIn;
+      if (prefs.targetProfit !== undefined && prefs.targetProfit !== '') els.targetProfit.value = prefs.targetProfit;
     } catch (e) {}
   }
-
   function savePrefs() {
     try {
-      const prefs = { shipOut: els.shipOut.value, fee: els.fee.value, shipIn: els.shipIn.value };
+      const prefs = {
+        shipOut: els.shipOut.value,
+        fee: els.fee.value,
+        shipIn: els.shipIn.value,
+        targetProfit: els.targetProfit.value
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     } catch (e) {}
   }
@@ -290,26 +317,11 @@ input[type="number"] { -moz-appearance: textfield; }
     if (!isFinite(n)) return '—';
     return '¥' + Math.round(n).toLocaleString();
   }
+  function getTier(price) { return tiers.find(t => price >= t.min && price < t.max); }
 
-  function getTier(price) {
-    return tiers.find(t => price >= t.min && price < t.max);
-  }
-
-  function showJudgmentMode() {
-    els.modeIndicator.style.display = 'none';
-    els.judgmentSection.style.display = 'block';
-    els.reverseSection.style.display = 'none';
-    els.divider.style.display = 'block';
-    els.mainLabel.textContent = '仕入れ上限（実質コスト＝商品＋送料）';
-  }
-
-  function showReverseMode() {
-    els.modeIndicator.style.display = 'inline-block';
-    els.modeIndicator.textContent = '🔄 逆算モード';
-    els.judgmentSection.style.display = 'none';
-    els.reverseSection.style.display = 'block';
-    els.divider.style.display = 'block';
-    els.mainLabel.textContent = '最低販売価格（この値段以上で売ればOK）';
+  function hideTargetBlock() {
+    els.targetBlock.style.display = 'none';
+    els.bindingSummary.style.display = 'none';
   }
 
   function showInitialState(msg) {
@@ -329,35 +341,75 @@ input[type="number"] { -moz-appearance: textfield; }
     els.profitValue.classList.remove('neg');
     els.roiValue.textContent = '—';
     els.roiValue.classList.remove('neg');
+    hideTargetBlock();
   }
 
-  function computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw) {
-    showJudgmentMode();
+  // ===== 判定モード =====
+  function computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw, targetProfit, hasTargetProfit) {
+    els.modeIndicator.style.display = 'none';
+    els.judgmentSection.style.display = 'block';
+    els.reverseSection.style.display = 'none';
+    els.divider.style.display = 'block';
+    els.mainLabel.textContent = '仕入れ上限（ティア基準）';
 
     const tier = getTier(sellPrice);
     const revenue = sellPrice * (1 - feeRate) - shipOut;
-
     const roiLimit = revenue / (1 + tier.roi);
     const profitLimit = revenue - tier.minProfit;
-    const limit = Math.min(roiLimit, profitLimit);
-    const binding = roiLimit < profitLimit ? 'ROI ' + Math.round(tier.roi * 100) + '%' : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
+    const tierLimit = Math.min(roiLimit, profitLimit);
+    const tierBinding = roiLimit < profitLimit
+      ? 'ROI ' + Math.round(tier.roi * 100) + '%'
+      : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
 
-    if (limit <= 0) {
+    // ティア基準の表示
+    if (tierLimit <= 0) {
       els.limitValue.textContent = '仕入れ不可';
-      els.limitMeta.textContent = tier.label + '・' + binding + '・手数料と送料を引くと赤字';
+      els.limitMeta.textContent = tier.label + '・' + tierBinding + '・手数料と送料を引くと赤字';
     } else {
-      els.limitValue.textContent = yen(limit);
-      els.limitMeta.textContent = tier.label + '・' + binding + 'が効いている';
+      els.limitValue.textContent = yen(tierLimit);
+      els.limitMeta.textContent = tier.label + '・' + tierBinding + 'が効いている';
     }
 
+    // 目標利益基準の表示
+    let effectiveLimit = tierLimit;
+    let activeBinding = 'tier';
+    if (hasTargetProfit) {
+      const targetLimit = revenue - targetProfit;
+      els.targetBlock.style.display = 'block';
+      els.targetLabel.textContent = '目標利益基準の仕入れ上限（' + yen(targetProfit) + '利益）';
+      if (targetLimit <= 0) {
+        els.targetValue.textContent = '達成不可';
+        els.targetMeta.textContent = 'この販売価格では ' + yen(targetProfit) + ' の利益は出ない';
+      } else {
+        els.targetValue.textContent = yen(targetLimit);
+        els.targetMeta.textContent = '販売 ' + yen(sellPrice) + ' で目標 ' + yen(targetProfit) + ' を取るための仕入れ上限';
+      }
+      effectiveLimit = Math.min(tierLimit > 0 ? tierLimit : Infinity, targetLimit > 0 ? targetLimit : Infinity);
+      if (!isFinite(effectiveLimit)) effectiveLimit = -1;
+      activeBinding = (targetLimit < tierLimit) ? 'target' : 'tier';
+
+      // どちらが効いているかのサマリ
+      els.bindingSummary.style.display = 'block';
+      if (tierLimit <= 0 && targetLimit <= 0) {
+        els.bindingSummary.innerHTML = '<b>どちらの基準でも仕入れ不可</b>';
+      } else if (tierLimit <= 0) {
+        els.bindingSummary.innerHTML = '実質の上限： <b>' + yen(targetLimit) + '</b> <span class="calc-binding-pill target-active">目標利益が効く</span>';
+      } else if (targetLimit <= 0) {
+        els.bindingSummary.innerHTML = '実質の上限： <b>' + yen(tierLimit) + '</b> <span class="calc-binding-pill tier-active">ティア判定が効く</span>';
+      } else {
+        const pillClass = activeBinding === 'target' ? 'target-active' : 'tier-active';
+        const pillText = activeBinding === 'target' ? '目標利益が効く' : 'ティア判定が効く';
+        els.bindingSummary.innerHTML = '実質の上限： <b>' + yen(effectiveLimit) + '</b> <span class="calc-binding-pill ' + pillClass + '">' + pillText + '</span>';
+      }
+    } else {
+      hideTargetBlock();
+    }
+
+    // 判定（仕入れ値が入力されているとき）
     if (buyPriceRaw && buyPrice > 0) {
       const realCost = buyPrice + shipIn;
       els.costValue.textContent = yen(realCost);
-      if (shipIn > 0) {
-        els.costMeta.textContent = '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn);
-      } else {
-        els.costMeta.textContent = '';
-      }
+      els.costMeta.textContent = shipIn > 0 ? '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn) : '';
 
       const profit = revenue - realCost;
       const roi = realCost > 0 ? (profit / realCost) * 100 : 0;
@@ -366,27 +418,32 @@ input[type="number"] { -moz-appearance: textfield; }
       els.roiValue.textContent = isFinite(roi) ? roi.toFixed(1) + '%' : '—';
       els.roiValue.classList.toggle('neg', roi < 0);
 
-      if (limit <= 0) {
+      // 判定対象の上限（目標利益が入っていれば厳しい方）
+      const judgeLimit = hasTargetProfit ? effectiveLimit : tierLimit;
+
+      if (judgeLimit <= 0) {
         els.verdict.className = 'calc-verdict v-bad';
         els.verdict.textContent = '✕ ダメ — この販売価格では利益が出ない';
         els.hint.style.display = 'none';
-      } else if (realCost <= limit) {
+      } else if (realCost <= judgeLimit) {
         els.verdict.className = 'calc-verdict v-ok';
-        els.verdict.textContent = '〇 いける — 基準クリア';
-        const margin = limit - realCost;
-        const marginPct = Math.round((realCost / limit) * 100);
+        let txt = '〇 いける — 基準クリア';
+        if (hasTargetProfit && profit >= targetProfit) txt += '（目標 ' + yen(targetProfit) + ' 達成）';
+        els.verdict.textContent = txt;
+        const margin = judgeLimit - realCost;
+        const marginPct = Math.round((realCost / judgeLimit) * 100);
         els.hint.style.display = 'block';
         els.hint.textContent = '余裕 ' + yen(margin) + '（上限の' + marginPct + '%で仕入れ）';
-      } else if (realCost <= limit * 1.1) {
+      } else if (realCost <= judgeLimit * 1.1) {
         els.verdict.className = 'calc-verdict v-warn';
-        els.verdict.textContent = '△ ギリギリ — 基準を ' + Math.round((realCost / limit - 1) * 100) + '% 超過';
-        const downAmount = realCost - limit;
+        els.verdict.textContent = '△ ギリギリ — 基準を ' + Math.round((realCost / judgeLimit - 1) * 100) + '% 超過';
+        const downAmount = realCost - judgeLimit;
         els.hint.style.display = 'block';
         els.hint.textContent = 'あと ' + yen(downAmount) + ' 下げれば〇';
       } else {
         els.verdict.className = 'calc-verdict v-bad';
-        els.verdict.textContent = '✕ ダメ — 基準を ' + Math.round((realCost / limit - 1) * 100) + '% 超過';
-        const downAmount = realCost - limit;
+        els.verdict.textContent = '✕ ダメ — 基準を ' + Math.round((realCost / judgeLimit - 1) * 100) + '% 超過';
+        const downAmount = realCost - judgeLimit;
         els.hint.style.display = 'block';
         els.hint.textContent = 'あと ' + yen(downAmount) + ' 下げれば〇';
       }
@@ -403,31 +460,27 @@ input[type="number"] { -moz-appearance: textfield; }
     }
   }
 
-  // 逆算モード: 仕入れ値から最低販売価格を算出
-  function computeReverseMode(buyPrice, shipIn, shipOut, feeRate) {
-    showReverseMode();
+  // ===== 逆算モード =====
+  function computeReverseMode(buyPrice, shipIn, shipOut, feeRate, targetProfit, hasTargetProfit) {
+    els.modeIndicator.style.display = 'inline-block';
+    els.modeIndicator.textContent = '🔄 逆算モード';
+    els.judgmentSection.style.display = 'none';
+    els.reverseSection.style.display = 'block';
+    els.divider.style.display = 'block';
+    els.mainLabel.textContent = '最低販売価格（ティア基準）';
 
     const realCost = buyPrice + shipIn;
-
     els.revCostValue.textContent = yen(realCost);
-    if (shipIn > 0) {
-      els.revCostMeta.textContent = '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn);
-    } else {
-      els.revCostMeta.textContent = '';
-    }
+    els.revCostMeta.textContent = shipIn > 0 ? '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn) : '';
 
-    let bestResult = null;
-
+    // ティア基準で最低販売価格を逆算
+    let tierResult = null;
     for (const tier of tiers) {
       const requiredRevenueByRoi = realCost * (1 + tier.roi);
       const requiredRevenueByProfit = realCost + tier.minProfit;
       const requiredRevenue = Math.max(requiredRevenueByRoi, requiredRevenueByProfit);
       const criterionPrice = (requiredRevenue + shipOut) / (1 - feeRate);
-
-      // その帯の最低販売価格 = max(基準クリア価格, 帯のmin価格)
       let actualMinPrice = Math.max(criterionPrice, tier.min);
-
-      // この価格が、その帯のレンジ内に収まるか確認
       if (actualMinPrice < tier.max) {
         let binding;
         if (criterionPrice <= tier.min) {
@@ -437,12 +490,11 @@ input[type="number"] { -moz-appearance: textfield; }
             ? 'ROI ' + Math.round(tier.roi * 100) + '%'
             : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
         }
-        bestResult = { tier, minSellPrice: actualMinPrice, binding, criterionPrice };
+        tierResult = { tier, minSellPrice: actualMinPrice, binding, criterionPrice };
         break;
       }
     }
-
-    if (!bestResult) {
+    if (!tierResult) {
       const tier = tiers[tiers.length - 1];
       const requiredRevenueByRoi = realCost * (1 + tier.roi);
       const requiredRevenueByProfit = realCost + tier.minProfit;
@@ -451,51 +503,39 @@ input[type="number"] { -moz-appearance: textfield; }
       const binding = requiredRevenueByRoi > requiredRevenueByProfit
         ? 'ROI ' + Math.round(tier.roi * 100) + '%'
         : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
-      bestResult = { tier, minSellPrice: criterionPrice, binding, criterionPrice };
+      tierResult = { tier, minSellPrice: criterionPrice, binding, criterionPrice };
     }
 
-    const { tier, minSellPrice, binding, criterionPrice } = bestResult;
-
-    els.limitValue.textContent = yen(minSellPrice) + ' 以上';
-
-    if (criterionPrice < tier.min) {
-      els.limitMeta.textContent = tier.label + '・' + binding + 'で販売すれば基準クリア（余裕あり）';
+    const tierMin = tierResult.minSellPrice;
+    els.limitValue.textContent = yen(tierMin) + ' 以上';
+    if (tierResult.criterionPrice < tierResult.tier.min) {
+      els.limitMeta.textContent = tierResult.tier.label + '・' + tierResult.binding + 'で販売すれば基準クリア（余裕あり）';
     } else {
-      els.limitMeta.textContent = tier.label + '・' + binding + 'が効いている';
+      els.limitMeta.textContent = tierResult.tier.label + '・' + tierResult.binding + 'が効いている';
     }
 
-    const revenue = minSellPrice * (1 - feeRate) - shipOut;
-    const profit = revenue - realCost;
-    const roi = realCost > 0 ? (profit / realCost) * 100 : 0;
-    els.revProfitValue.textContent = yen(profit);
-    els.revProfitValue.classList.toggle('neg', profit < 0);
-    els.revRoiValue.textContent = isFinite(roi) ? roi.toFixed(1) + '%' : '—';
-    els.revRoiValue.classList.toggle('neg', roi < 0);
-  }
+    // 目標利益基準で最低販売価格を逆算
+    let effectiveMin = tierMin;
+    let activeBinding = 'tier';
+    if (hasTargetProfit) {
+      const targetMinSellPrice = (realCost + targetProfit + shipOut) / (1 - feeRate);
+      els.targetBlock.style.display = 'block';
+      els.targetLabel.textContent = '目標利益基準の最低販売価格（' + yen(targetProfit) + '利益）';
+      els.targetValue.textContent = yen(targetMinSellPrice) + ' 以上';
+      els.targetMeta.textContent = '仕入れ ' + yen(realCost) + ' で目標 ' + yen(targetProfit) + ' を取るために必要な販売価格';
+      effectiveMin = Math.max(tierMin, targetMinSellPrice);
+      activeBinding = (targetMinSellPrice > tierMin) ? 'target' : 'tier';
 
-  // 利益逆算モード: 仕入れ値＋目標利益額から必要な販売価格を算出
-  function computeTargetProfitMode(buyPrice, shipIn, shipOut, feeRate, targetProfit) {
-    showReverseMode();
-    els.modeIndicator.textContent = '🎯 利益逆算モード';
-    els.mainLabel.textContent = '必要販売価格（この値段以上で目標利益達成）';
-
-    const realCost = buyPrice + shipIn;
-
-    els.revCostValue.textContent = yen(realCost);
-    if (shipIn > 0) {
-      els.revCostMeta.textContent = '商品 ' + yen(buyPrice) + ' + 仕入れ送料 ' + yen(shipIn);
+      els.bindingSummary.style.display = 'block';
+      const pillClass = activeBinding === 'target' ? 'target-active' : 'tier-active';
+      const pillText = activeBinding === 'target' ? '目標利益が効く' : 'ティア判定が効く';
+      els.bindingSummary.innerHTML = '実質の最低販売価格： <b>' + yen(effectiveMin) + ' 以上</b> <span class="calc-binding-pill ' + pillClass + '">' + pillText + '</span>';
     } else {
-      els.revCostMeta.textContent = '';
+      hideTargetBlock();
     }
 
-    // 利益 = 販売価格 × (1 - 手数料率) - 販売送料 - 実質コスト
-    // 目標利益から逆算: 販売価格 = (目標利益 + 実質コスト + 販売送料) / (1 - 手数料率)
-    const requiredSellPrice = (targetProfit + realCost + shipOut) / (1 - feeRate);
-
-    els.limitValue.textContent = yen(requiredSellPrice) + ' 以上';
-    els.limitMeta.textContent = '目標利益 ' + Math.round(targetProfit).toLocaleString() + '円 を達成する販売価格';
-
-    const revenue = requiredSellPrice * (1 - feeRate) - shipOut;
+    // 実質の最低販売価格で利益とROIを計算
+    const revenue = effectiveMin * (1 - feeRate) - shipOut;
     const profit = revenue - realCost;
     const roi = realCost > 0 ? (profit / realCost) * 100 : 0;
     els.revProfitValue.textContent = yen(profit);
@@ -506,7 +546,6 @@ input[type="number"] { -moz-appearance: textfield; }
 
   function compute() {
     savePrefs();
-
     const sellPriceRaw = els.sellPrice.value;
     const shipOutRaw = els.shipOut.value;
     const feeRaw = els.fee.value;
@@ -520,10 +559,10 @@ input[type="number"] { -moz-appearance: textfield; }
     const buyPrice = parseFloat(buyPriceRaw);
     const shipIn = parseFloat(shipInRaw) || 0;
     const targetProfit = parseFloat(targetProfitRaw);
+    const hasTargetProfit = !!targetProfitRaw && targetProfit > 0;
 
     const hasSellPrice = sellPriceRaw && sellPrice > 0;
     const hasBuyPrice = buyPriceRaw && buyPrice > 0;
-    const hasTargetProfit = targetProfitRaw && targetProfit > 0;
 
     if (!shipOutRaw || isNaN(shipOut)) {
       showInitialState('販売送料を入力してください（0なら0と入力）');
@@ -535,14 +574,9 @@ input[type="number"] { -moz-appearance: textfield; }
     }
 
     if (hasSellPrice) {
-      computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw);
+      computeJudgmentMode(sellPrice, shipOut, feeRate, buyPrice, shipIn, buyPriceRaw, targetProfit, hasTargetProfit);
     } else if (hasBuyPrice) {
-      // 目標利益額が入っていれば「利益逆算」、なければ従来のティア基準で逆算
-      if (hasTargetProfit) {
-        computeTargetProfitMode(buyPrice, shipIn, shipOut, feeRate, targetProfit);
-      } else {
-        computeReverseMode(buyPrice, shipIn, shipOut, feeRate);
-      }
+      computeReverseMode(buyPrice, shipIn, shipOut, feeRate, targetProfit, hasTargetProfit);
     } else {
       showInitialState('販売想定価格or仕入れ値を入力してください');
     }
@@ -551,19 +585,15 @@ input[type="number"] { -moz-appearance: textfield; }
   ['sellPrice', 'shipOut', 'fee', 'buyPrice', 'shipIn', 'targetProfit'].forEach(key => {
     els[key].addEventListener('input', compute);
   });
-
   els.shipOutPreset.addEventListener('change', e => {
     if (e.target.value) { els.shipOut.value = e.target.value; compute(); e.target.value = ''; }
   });
-
   els.feePreset.addEventListener('change', e => {
     if (e.target.value) { els.fee.value = e.target.value; compute(); e.target.value = ''; }
   });
-
   els.resetBtn.addEventListener('click', () => {
     els.sellPrice.value = '';
     els.buyPrice.value = '';
-    els.targetProfit.value = '';
     compute();
   });
 
@@ -571,13 +601,12 @@ input[type="number"] { -moz-appearance: textfield; }
   compute();
 })();
 </script>
-
 <script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
-    });
-  }
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
