@@ -83,6 +83,10 @@ header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position
 .profit.plus{color:var(--ok)}.profit.minus{color:var(--bad)}
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
 
+.thumb{flex:0 0 auto;width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--paper)}
+.imgprev{max-width:100%;max-height:180px;border-radius:10px;margin-top:8px;display:none}
+.imgprev.on{display:block}
+
 /* ---- bottom nav ---- */
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);
   display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
@@ -176,6 +180,12 @@ nav button.on{color:var(--indigo);font-weight:700}
           <select id="f種類"><option>衣類</option><option>靴</option><option>小物</option><option>バッグ</option><option>その他</option></select></div>
         <div class="frow"><label>仕入れ元</label><input id="f仕入れ元" placeholder="例: オフハウス / ヤフオク" list="srcList">
           <datalist id="srcList"></datalist></div>
+      </div>
+      <div class="frow" style="margin-top:4px"><label>商品画像</label>
+        <input type="file" id="imgFile" accept="image/*" style="margin-bottom:6px">
+        <input id="f画像" placeholder="または画像URLを貼り付け（ヤフオク・メルカリの商品画像など）">
+        <div class="note" id="imgMsg" style="display:none"></div>
+        <img class="imgprev" id="imgPrev" alt="">
       </div>
     </div>
 
@@ -309,7 +319,7 @@ const TIERS = [
 ];
 const FIELDS = ['ID','ステータス','商品名','プラットフォーム','種類','仕入れ元','仕入日','出品日','発送日','取引日','取引完了日',
   '販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価',
-  '元値','使用ポイント','使用クーポン','ポイント付与','備考','更新日時'];
+  '元値','使用ポイント','使用クーポン','ポイント付与','備考','更新日時','画像'];
 
 const $ = id => document.getElementById(id);
 const yen = n => (n==null || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString('ja-JP');
@@ -451,8 +461,10 @@ function card(it){
     daysTag = `<span class="tag ${cls}">在庫${d}日</span>`;
   }
   const sellShow = sold ? yen(num(it['販売価格'])) : (num(it['開始価格'])? yen(num(it['開始価格']))+'〜' : (num(it['予想売価'])? '予想'+yen(num(it['予想売価'])) : '—'));
+  const imgUrl = String(it['画像']||'').trim();
   el.innerHTML = `
     <div class="i-top">
+      ${imgUrl? `<img class="thumb" loading="lazy" onerror="this.style.display='none'">` : ''}
       <div class="i-name"></div>
       ${j? `<div class="stamp ${j.verdict}">${j.mark}<small>${j.tier}</small></div>` : `<div class="stamp none">未<br>判定</div>`}
     </div>
@@ -467,6 +479,7 @@ function card(it){
       ${pr!=null? `<span class="profit num ${pr>=0?'plus':'minus'}">${pr>=0?'+':''}${yen(pr).replace('¥', pr>=0?'¥':'-¥').replace('--','-')}</span>`:''}
     </div>`;
   el.querySelector('.i-name').textContent = it['商品名'] || '(名称なし)';
+  const tEl = el.querySelector('.thumb'); if(tEl) tEl.src = imgUrl;
   el.addEventListener('click', ()=> openForm(it['ID']));
   return el;
 }
@@ -529,7 +542,10 @@ function openForm(id){
   $('formTitle').textContent = it? '商品を編集' : '商品を登録';
   $('btnDelete').style.display = it? '' : 'none';
   const get = k => it? (it[k]??'') : '';
-  ['商品名','仕入れ元','備考'].forEach(k=> $('f'+k).value = get(k));
+  ['商品名','仕入れ元','備考','画像'].forEach(k=> $('f'+k).value = get(k));
+  updateImgPrev();
+  $('imgFile').value = '';
+  $('imgMsg').style.display = 'none';
   ['ステータス','プラットフォーム','種類'].forEach(k=> $('f'+k).value = get(k) || $('f'+k).options[0].value);
   ['販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価','元値','使用ポイント','使用クーポン','ポイント付与']
     .forEach(k=>{ const v = get(k); $('f'+k).value = (v===''||v==null||num(v)===0 && String(v).trim()==='')? '' : (v===0?'':v); });
@@ -545,7 +561,7 @@ function openForm(id){
 function formItem(){
   const it = {};
   it['ID'] = editingId || '';
-  ['商品名','仕入れ元','備考','ステータス','プラットフォーム','種類'].forEach(k=> it[k] = $('f'+k).value.trim? $('f'+k).value.trim() : $('f'+k).value);
+  ['商品名','仕入れ元','備考','ステータス','プラットフォーム','種類','画像'].forEach(k=> it[k] = $('f'+k).value.trim? $('f'+k).value.trim() : $('f'+k).value);
   ['販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価','元値','使用ポイント','使用クーポン','ポイント付与']
     .forEach(k=>{ const v = $('f'+k).value.trim(); it[k] = v===''? '' : num(v); });
   ['仕入日','出品日','発送日','取引日','取引完了日'].forEach(k=> it[k] = $('f'+k).value);
@@ -651,7 +667,7 @@ function handleCSV(file){
         '販売価格': numOrNull(g('販売価格'))??'', '仕入額': numOrNull(g('仕入額'))??'', '手数料': numOrNull(g('手数料'))??'',
         '送料': numOrNull(g('送料'))??'', '梱包資材': numOrNull(g('梱包資材'))??'', 'その他経費': numOrNull(g('その他経費'))??'',
         '相場':'', '開始価格':'', '予想売価':'', '元値':'', '使用ポイント':'', '使用クーポン':'', 'ポイント付与':'',
-        '備考': g('備考')
+        '備考': g('備考'), '画像': ''
       };
       Object.assign(it, parseBiko(g('備考')));
       if(!it['仕入れ元']){
@@ -725,6 +741,52 @@ async function connTest(){
   }catch(e){ $('connMsg').textContent = '❌ 接続できません: ' + e.message; }
 }
 
+/* ============ 画像 ============ */
+function updateImgPrev(){
+  const u = $('f画像').value.trim();
+  const p = $('imgPrev');
+  if(u){ p.src = u; p.classList.add('on'); p.onerror = ()=> p.classList.remove('on'); }
+  else p.classList.remove('on');
+}
+function resizeImage(file){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if(w > MAX || h > MAX){
+        const r = Math.min(MAX/w, MAX/h);
+        w = Math.round(w*r); h = Math.round(h*r);
+      }
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const dataUrl = cv.toDataURL('image/jpeg', 0.82);
+      resolve(dataUrl.split(',')[1]);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('画像を読めませんでした')); };
+    img.src = url;
+  });
+}
+async function uploadImage(file){
+  if(!settings.url){ toast('先に設定でデータ接続をしてください'); return; }
+  const msg = $('imgMsg');
+  msg.style.display = '';
+  msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真をアップロード中…';
+  try{
+    const b64 = await resizeImage(file);
+    const r = await apiPost({action:'uploadImage', data: b64, mime: 'image/jpeg'});
+    if(!r.ok) throw new Error(r.error);
+    $('f画像').value = r.url;
+    updateImgPrev();
+    msg.textContent = '✅ アップロードできました（保存ボタンで商品に紐づきます）';
+  }catch(e){
+    msg.textContent = '❌ アップロードできませんでした: ' + e.message;
+  }
+}
+
 /* ============ 起動 ============ */
 $('q').addEventListener('input', onSearch);
 $('qClear').onclick = ()=>{ $('q').value=''; onSearch(); };
@@ -747,6 +809,8 @@ $('btnFeeSave').onclick = ()=>{
   for(const k of ['ヤフオク','メルカリ','ラクマ','その他']) settings.fees[k] = parseFloat($('fee'+k).value)||10;
   LS.set('settings', settings); toast('手数料率を保存しました'); render();
 };
+$('imgFile').addEventListener('change', e=>{ if(e.target.files[0]) uploadImage(e.target.files[0]); });
+$('f画像').addEventListener('input', updateImgPrev);
 $('csvFile').addEventListener('change', e=>{ if(e.target.files[0]) handleCSV(e.target.files[0]); });
 $('btnImport').onclick = runImport;
 $('btnExport').onclick = exportCSV;
@@ -757,4 +821,3 @@ reload(false);
 </script>
 </body>
 </html>
-
