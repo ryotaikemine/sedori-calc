@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>収支管理</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2E4E79">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --paper:#F5F6F3; --card:#FFFFFF; --ink:#20241F; --sub:#6A7066; --line:#DDE0DA;
+  --indigo:#2E4E79; --indigo-deep:#22375A; --indigo-pale:#E8EEF6;
+  --ok:#20794D; --ok-pale:#E3F2EA; --warn:#A8730F; --warn-pale:#FBF0DA; --bad:#B3372B; --bad-pale:#F9E5E2;
+  --stale1:#4A6FA5; --stale2:#A8730F; --stale3:#B3372B;
+  --radius:12px; --shadow:0 1px 3px rgba(32,36,31,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);font-size:15px;line-height:1.55;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+button{font-family:inherit;font-size:inherit;border:none;background:none;cursor:pointer;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--indigo);outline-offset:0;border-color:var(--indigo)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- header ---- */
+header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position:sticky;top:0;z-index:20}
+.h-row{display:flex;align-items:center;gap:10px}
+.h-title{font-size:17px;font-weight:700;letter-spacing:.06em}
+.h-sub{font-size:11px;opacity:.75;margin-left:auto}
+.searchwrap{margin-top:8px;position:relative}
+.searchwrap input{border:none;border-radius:10px;padding:11px 38px 11px 40px;font-size:16px;box-shadow:var(--shadow)}
+.searchwrap .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--sub);font-size:16px}
+.searchwrap .clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;
+  border-radius:50%;color:var(--sub);font-size:15px;display:none}
+.searchwrap .clear.on{display:block}
+.hint{font-size:11px;color:#DCE4EF;margin-top:5px}
+
+/* saved search + status chips */
+.chiprow{display:flex;gap:6px;overflow-x:auto;padding:8px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chiprow::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:99px;
+  padding:5px 12px;font-size:13px;color:var(--sub);white-space:nowrap}
+.chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.chip.save{border-style:dashed;color:var(--indigo)}
+.chip .x{margin-left:6px;opacity:.6}
+
+/* ---- summary bar ---- */
+.summary{display:flex;gap:8px;padding:6px 14px 2px}
+.sum-card{flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:8px 10px;text-align:center}
+.sum-card .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.sum-card .k{font-size:10px;color:var(--sub)}
+
+/* ---- list ---- */
+#list{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+.item{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;cursor:pointer}
+.i-top{display:flex;align-items:flex-start;gap:8px}
+.i-name{font-size:14px;font-weight:600;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.stamp{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:2px solid;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-size:13px;font-weight:700;line-height:1}
+.stamp small{font-size:8px;font-weight:600;letter-spacing:0}
+.stamp.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-pale)}
+.stamp.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-pale)}
+.stamp.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-pale)}
+.stamp.none{color:var(--sub);border-color:var(--line);background:var(--paper);font-size:10px}
+.i-mid{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tag{font-size:11px;padding:2px 8px;border-radius:5px;background:var(--paper);color:var(--sub)}
+.tag.st-出品前{background:#EEE9F7;color:#5B4A8A}
+.tag.st-出品中{background:var(--indigo-pale);color:var(--indigo)}
+.tag.st-入金待ち{background:var(--warn-pale);color:var(--warn)}
+.tag.st-取引完了{background:var(--ok-pale);color:var(--ok)}
+.tag.days1{background:#E7EDF6;color:var(--stale1)}
+.tag.days2{background:var(--warn-pale);color:var(--stale2);font-weight:600}
+.tag.days3{background:var(--bad-pale);color:var(--stale3);font-weight:700}
+.i-money{display:flex;align-items:baseline;gap:10px;margin-top:6px;font-variant-numeric:tabular-nums}
+.i-money .buy{font-size:12px;color:var(--sub)}
+.i-money .sell{font-size:15px;font-weight:700}
+.i-money .profit{margin-left:auto;font-size:14px;font-weight:700}
+.profit.plus{color:var(--ok)}.profit.minus{color:var(--bad)}
+.empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
+
+/* ---- bottom nav ---- */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);
+  display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:9px 0 7px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .ni{font-size:19px;line-height:1}
+nav button.on{color:var(--indigo);font-weight:700}
+.fab{position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;
+  background:var(--indigo);color:#fff;font-size:26px;box-shadow:0 4px 12px rgba(34,55,90,.4);z-index:29}
+
+/* ---- views ---- */
+.view{display:none}
+.view.on{display:block}
+.pagehead{padding:14px 14px 4px;font-size:16px;font-weight:700}
+.formwrap{padding:8px 14px 20px}
+.fcard{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.fcard h3{font-size:13px;color:var(--indigo);margin-bottom:10px;letter-spacing:.05em}
+.frow{margin-bottom:10px}
+.frow label{display:block;font-size:12px;color:var(--sub);margin-bottom:3px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 10px}
+.calcbox{background:var(--indigo-pale);border-radius:10px;padding:10px 12px;font-size:13px;margin-top:4px}
+.calcbox .cr{display:flex;justify-content:space-between;padding:2px 0;font-variant-numeric:tabular-nums}
+.calcbox .cr b{font-size:14px}
+.toggle{width:100%;text-align:left;padding:12px 14px;background:var(--card);border:1px dashed var(--line);
+  border-radius:var(--radius);color:var(--indigo);font-size:14px;margin-bottom:12px}
+.btn{display:block;width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;text-align:center}
+.btn.primary{background:var(--indigo);color:#fff}
+.btn.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);margin-top:8px}
+.btn.danger{background:none;color:var(--bad);margin-top:8px;font-weight:600;font-size:13px}
+.btn:disabled{opacity:.5}
+.note{font-size:12px;color:var(--sub);margin:6px 2px}
+.msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));
+  background:var(--ink);color:#fff;padding:9px 18px;border-radius:99px;font-size:13px;z-index:99;
+  opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+.msg.on{opacity:.95}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;
+  animation:sp 1s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+@media(min-width:760px){
+  body{max-width:960px;margin:0 auto}
+  #list{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  header{border-radius:0 0 var(--radius) var(--radius)}
+  nav{max-width:960px;margin:0 auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 一覧ビュー ============ -->
+<header id="hdr">
+  <div class="h-row">
+    <div class="h-title">収支管理</div>
+    <div class="h-sub" id="syncInfo">未接続</div>
+    <button id="btnReload" aria-label="更新" style="color:#fff;font-size:18px">⟳</button>
+  </div>
+  <div class="searchwrap">
+    <span class="icon">🔍</span>
+    <input id="q" type="search" placeholder="キーワード検索（スペースで絞り込み）" autocomplete="off">
+    <button class="clear" id="qClear" aria-label="クリア">✕</button>
+  </div>
+  <div class="hint">複数語で AND 検索 ／ 「-レディース」で除外</div>
+</header>
+
+<div class="chiprow" id="statusChips"></div>
+<div class="chiprow" id="savedChips"></div>
+
+<div class="summary">
+  <div class="sum-card"><div class="v num" id="sumCount">0</div><div class="k">表示件数</div></div>
+  <div class="sum-card"><div class="v num" id="sumStock">¥0</div><div class="k">在庫金額</div></div>
+  <div class="sum-card"><div class="v num" id="sumProfit">¥0</div><div class="k">利益（表示分）</div></div>
+</div>
+
+<main class="view on" id="viewList">
+  <div id="list"></div>
+</main>
+
+<!-- ============ 入力フォーム ============ -->
+<section class="view" id="viewForm">
+  <div class="pagehead" id="formTitle">商品を登録</div>
+  <div class="formwrap">
+    <div class="fcard">
+      <h3>基本情報</h3>
+      <div class="frow"><label>商品名</label><input id="f商品名" placeholder="例: Burberry ゴルフ ポロシャツ L 紺"></div>
+      <div class="fgrid">
+        <div class="frow"><label>ステータス</label>
+          <select id="fステータス"><option>出品前</option><option>出品中</option><option>入金待ち</option><option>取引完了</option></select></div>
+        <div class="frow"><label>プラットフォーム</label>
+          <select id="fプラットフォーム"><option>ヤフオク</option><option>メルカリ</option><option>ラクマ</option><option>その他</option></select></div>
+        <div class="frow"><label>種類</label>
+          <select id="f種類"><option>衣類</option><option>靴</option><option>小物</option><option>バッグ</option><option>その他</option></select></div>
+        <div class="frow"><label>仕入れ元</label><input id="f仕入れ元" placeholder="例: オフハウス / ヤフオク" list="srcList">
+          <datalist id="srcList"></datalist></div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <h3>お金（仕入れ・販売）</h3>
+      <div class="fgrid">
+        <div class="frow"><label>仕入額（円）</label><input id="f仕入額" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="frow"><label>販売価格（売れた額）</label><input id="f販売価格" type="number" inputmode="numeric" placeholder="未売却は空欄"></div>
+        <div class="frow"><label>手数料（実額）</label><input id="f手数料" type="number" inputmode="numeric" placeholder="空欄=自動見積"></div>
+        <div class="frow"><label>送料（発送）</label><input id="f送料" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="frow"><label>梱包資材</label><input id="f梱包資材" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="frow"><label>その他経費</label><input id="fその他経費" type="number" inputmode="numeric" placeholder="0"></div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <h3>値付け（相場 → 開始価格 → 予想売価）</h3>
+      <div class="fgrid3">
+        <div class="frow"><label>相場</label><input id="f相場" type="number" inputmode="numeric"></div>
+        <div class="frow"><label>開始価格</label><input id="f開始価格" type="number" inputmode="numeric"></div>
+        <div class="frow"><label>予想売価</label><input id="f予想売価" type="number" inputmode="numeric"></div>
+      </div>
+      <div class="calcbox" id="calcBox">
+        <div class="cr"><span>損益分岐（自動）</span><b id="cBreakeven">—</b></div>
+        <div class="cr"><span>値下げ余地（開始価格から）</span><b id="cRoom">—</b></div>
+        <div class="cr"><span>ティア判定</span><b id="cTier">—</b></div>
+      </div>
+    </div>
+
+    <button class="toggle" id="btnDenno">▸ 電脳仕入れの詳細を開く（元値・ポイント・クーポン）</button>
+    <div class="fcard" id="dennoCard" style="display:none">
+      <h3>電脳仕入れ</h3>
+      <div class="fgrid">
+        <div class="frow"><label>元値</label><input id="f元値" type="number" inputmode="numeric"></div>
+        <div class="frow"><label>使用ポイント</label><input id="f使用ポイント" type="number" inputmode="numeric"></div>
+        <div class="frow"><label>使用クーポン</label><input id="f使用クーポン" type="number" inputmode="numeric"></div>
+        <div class="frow"><label>ポイント付与</label><input id="fポイント付与" type="number" inputmode="numeric"></div>
+      </div>
+      <div class="calcbox"><div class="cr"><span>実際の購入価格（自動）</span><b id="cRealCost">—</b></div></div>
+    </div>
+
+    <div class="fcard">
+      <h3>日付</h3>
+      <div class="fgrid">
+        <div class="frow"><label>仕入日</label><input id="f仕入日" type="date"></div>
+        <div class="frow"><label>出品日</label><input id="f出品日" type="date"></div>
+        <div class="frow"><label>取引日（売れた日）</label><input id="f取引日" type="date"></div>
+        <div class="frow"><label>発送日</label><input id="f発送日" type="date"></div>
+        <div class="frow"><label>取引完了日</label><input id="f取引完了日" type="date"></div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <h3>備考</h3>
+      <textarea id="f備考" rows="3" placeholder="メモ"></textarea>
+    </div>
+
+    <button class="btn primary" id="btnSave">保存する</button>
+    <button class="btn ghost" id="btnCancel">キャンセル</button>
+    <button class="btn danger" id="btnDelete" style="display:none">この商品を削除する</button>
+  </div>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section class="view" id="viewSettings">
+  <div class="pagehead">設定</div>
+  <div class="formwrap">
+    <div class="fcard">
+      <h3>データ接続</h3>
+      <div class="frow"><label>ウェブアプリURL（Apps Scriptで発行したもの）</label><input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="frow"><label>合言葉</label><input id="sKey" placeholder="kobanu-2026"></div>
+      <button class="btn primary" id="btnConnTest">接続テスト＆保存</button>
+      <div class="note" id="connMsg"></div>
+    </div>
+    <div class="fcard">
+      <h3>手数料率（％）</h3>
+      <div class="fgrid">
+        <div class="frow"><label>ヤフオク</label><input id="feeヤフオク" type="number" step="0.1" inputmode="decimal"></div>
+        <div class="frow"><label>メルカリ</label><input id="feeメルカリ" type="number" step="0.1" inputmode="decimal"></div>
+        <div class="frow"><label>ラクマ</label><input id="feeラクマ" type="number" step="0.1" inputmode="decimal"></div>
+        <div class="frow"><label>その他</label><input id="feeその他" type="number" step="0.1" inputmode="decimal"></div>
+      </div>
+      <button class="btn ghost" id="btnFeeSave">手数料率を保存</button>
+      <div class="note">手数料の実額が入力されている商品はそちらを優先します。空欄の商品はこの率で自動見積もりします。</div>
+    </div>
+    <div class="fcard">
+      <h3>セラーブックCSV取り込み</h3>
+      <input type="file" id="csvFile" accept=".csv">
+      <div class="note">セラーブックから書き出したCSVを選ぶと内容を確認してから取り込めます。備考欄の「仕入先:」「希望:」「予想:」などのメモも自動で項目に振り分けます。</div>
+      <div id="csvPreview"></div>
+      <button class="btn primary" id="btnImport" style="display:none">この内容で取り込む</button>
+    </div>
+    <div class="fcard">
+      <h3>バックアップ</h3>
+      <button class="btn ghost" id="btnExport" style="margin-top:0">全データをCSVで書き出す</button>
+    </div>
+  </div>
+</section>
+
+<button class="fab" id="fabAdd" aria-label="商品を追加">＋</button>
+
+<nav>
+  <button id="navList" class="on"><span class="ni">📋</span>一覧</button>
+  <button id="navAdd"><span class="ni">＋</span>登録</button>
+  <button id="navSettings"><span class="ni">⚙</span>設定</button>
+</nav>
+
+<div class="msg" id="msg"></div>
+
+<script>
+"use strict";
+/* ============ 状態と設定 ============ */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v===null? d : JSON.parse(v);}catch(e){return d} },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+let settings = LS.get('settings', {url:'', key:'', fees:{'ヤフオク':10,'メルカリ':10,'ラクマ':10,'その他':10}});
+let savedSearches = LS.get('savedSearches', []);
+let items = LS.get('cacheItems', []);
+let statusFilter = LS.get('statusFilter', '');
+let editingId = null;
+let csvRows = null;
+
+const TIERS = [
+  {name:'A', min:0, max:5000, roi:0.40, minP:1500},
+  {name:'B1', min:5000, max:10000, roi:0.30, minP:2250},
+  {name:'B2', min:10000, max:15000, roi:0.28, minP:3500},
+  {name:'C', min:15000, max:35000, roi:0.22, minP:5000},
+  {name:'D', min:35000, max:80000, roi:0.18, minP:8000},
+  {name:'E', min:80000, max:Infinity, roi:0.13, minP:15000},
+];
+const FIELDS = ['ID','ステータス','商品名','プラットフォーム','種類','仕入れ元','仕入日','出品日','発送日','取引日','取引完了日',
+  '販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価',
+  '元値','使用ポイント','使用クーポン','ポイント付与','備考','更新日時'];
+
+const $ = id => document.getElementById(id);
+const yen = n => (n==null || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString('ja-JP');
+const num = v => { const n = parseFloat(String(v??'').replace(/[¥,円\s]/g,'')); return isNaN(n)? 0 : n; };
+const numOrNull = v => { const s = String(v??'').trim(); if(s==='') return null; const n = num(s); return n; };
+function toast(t){ const m=$('msg'); m.textContent=t; m.classList.add('on'); clearTimeout(m._t); m._t=setTimeout(()=>m.classList.remove('on'),2600); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function normDate(s){ if(!s) return ''; const m = String(s).match(/(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/); if(!m) return ''; return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0'); }
+function daysBetween(a, b){ const d1=new Date(a), d2=new Date(b); if(isNaN(d1)||isNaN(d2)) return null; return Math.floor((d2-d1)/86400000); }
+
+/* ============ 計算ロジック ============ */
+function feeRate(pf){ const r = settings.fees[pf]; return (r==null? 10 : r)/100; }
+function realCost(it){ // 実際の購入価格
+  const gan = num(it['元値']);
+  if(gan > 0) return gan - num(it['使用ポイント']) - num(it['使用クーポン']);
+  return num(it['仕入額']);
+}
+function expenses(it){ return num(it['送料']) + num(it['梱包資材']) + num(it['その他経費']); }
+function feeOf(it, price){ const f = num(it['手数料']); if(f>0) return f; return Math.round((price||0) * feeRate(it['プラットフォーム'])); }
+function breakeven(it){ // 損益分岐
+  const c = realCost(it) + expenses(it);
+  const r = feeRate(it['プラットフォーム']);
+  if(c<=0) return null;
+  return Math.ceil(c / (1 - r));
+}
+function profitOf(it){ // 売れた商品の利益
+  const p = num(it['販売価格']);
+  if(p<=0) return null;
+  return p - feeOf(it,p) - expenses(it) - realCost(it);
+}
+function basisPrice(it){ // 判定に使う価格: 販売価格 > 予想売価 > 開始価格
+  return num(it['販売価格']) || num(it['予想売価']) || num(it['開始価格']) || 0;
+}
+function judge(it){ // 6ティア判定
+  const price = basisPrice(it);
+  const cost = realCost(it);
+  if(price<=0 || cost<=0) return null;
+  const t = TIERS.find(t => price>=t.min && price<t.max) || TIERS[TIERS.length-1];
+  const net = price * (1 - feeRate(it['プラットフォーム'])) - num(it['送料']);
+  const cap = Math.min(net/(1+t.roi), net - t.minP);
+  let v;
+  if(cap<=0) v='bad';
+  else if(cost<=cap) v='ok';
+  else if(cost<=cap*1.10) v='warn';
+  else v='bad';
+  return {tier:t.name, verdict:v, cap:Math.floor(cap), mark: v==='ok'?'〇':v==='warn'?'△':'✕'};
+}
+function stockDays(it){
+  if(it['ステータス']==='取引完了') return null;
+  const d = normDate(it['仕入日']); if(!d) return null;
+  return daysBetween(d, today());
+}
+
+/* ============ API ============ */
+async function apiGet(params){
+  const u = new URL(settings.url);
+  u.searchParams.set('key', settings.key);
+  for(const k in params) u.searchParams.set(k, params[k]);
+  const res = await fetch(u.toString());
+  return res.json();
+}
+async function apiPost(body){
+  body.key = settings.key;
+  const res = await fetch(settings.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
+  return res.json();
+}
+async function reload(showToast){
+  if(!settings.url){ $('syncInfo').textContent='未接続（設定へ）'; return; }
+  $('syncInfo').textContent='読込中…';
+  try{
+    const r = await apiGet({action:'list'});
+    if(!r.ok) throw new Error(r.error);
+    items = r.items;
+    LS.set('cacheItems', items);
+    $('syncInfo').textContent = '同期 ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    render();
+    if(showToast) toast('最新データを読み込みました');
+  }catch(e){
+    $('syncInfo').textContent='オフライン（前回データ表示中）';
+    if(showToast) toast('読み込みに失敗: ' + e.message);
+    render();
+  }
+}
+
+/* ============ 検索 ============ */
+function norm(s){
+  return String(s??'').toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/[ァ-ン]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60)); // カタカナ→ひらがな
+}
+function matches(it, query){
+  const hay = norm(['商品名','備考','仕入れ元','プラットフォーム','種類','ステータス','ID'].map(k=>it[k]).join(' '));
+  const tokens = norm(query).split(/[\s　]+/).filter(Boolean);
+  for(const t of tokens){
+    if(t.startsWith('-') && t.length>1){ if(hay.includes(t.slice(1))) return false; }
+    else if(t!=='-'){ if(!hay.includes(t)) return false; }
+  }
+  return true;
+}
+function filtered(){
+  const q = $('q').value;
+  let arr = items.filter(it => matches(it, q));
+  if(statusFilter) arr = arr.filter(it => it['ステータス']===statusFilter);
+  // 並び: 未完了を仕入日昇順(古い在庫が上) → 完了を取引日降順
+  const done = arr.filter(i=>i['ステータス']==='取引完了').sort((a,b)=> normDate(b['取引日']||b['取引完了日']).localeCompare(normDate(a['取引日']||a['取引完了日'])));
+  const live = arr.filter(i=>i['ステータス']!=='取引完了').sort((a,b)=> normDate(a['仕入日']).localeCompare(normDate(b['仕入日'])));
+  return live.concat(done);
+}
+
+/* ============ 描画 ============ */
+function render(){
+  const arr = filtered();
+  const list = $('list');
+  list.innerHTML = '';
+  let stockSum = 0, profitSum = 0;
+  for(const it of arr){
+    if(it['ステータス']!=='取引完了') stockSum += realCost(it);
+    const pr = profitOf(it); if(pr!=null && it['ステータス']==='取引完了') profitSum += pr;
+    list.appendChild(card(it));
+  }
+  if(arr.length===0){
+    list.innerHTML = '<div class="empty">' + (items.length===0 ? 'まだ商品がありません。<br>右下の＋から登録するか、設定からCSVを取り込めます。' : '検索に一致する商品がありません') + '</div>';
+  }
+  $('sumCount').textContent = arr.length;
+  $('sumStock').textContent = yen(stockSum);
+  $('sumProfit').textContent = yen(profitSum);
+  renderChips();
+}
+function card(it){
+  const el = document.createElement('div');
+  el.className = 'item';
+  const j = judge(it);
+  const d = stockDays(it);
+  const pr = profitOf(it);
+  const sold = it['ステータス']==='取引完了';
+  let daysTag = '';
+  if(d!=null){
+    const cls = d>=90?'days3': d>=60?'days2':'days1';
+    daysTag = `<span class="tag ${cls}">在庫${d}日</span>`;
+  }
+  const sellShow = sold ? yen(num(it['販売価格'])) : (num(it['開始価格'])? yen(num(it['開始価格']))+'〜' : (num(it['予想売価'])? '予想'+yen(num(it['予想売価'])) : '—'));
+  el.innerHTML = `
+    <div class="i-top">
+      <div class="i-name"></div>
+      ${j? `<div class="stamp ${j.verdict}">${j.mark}<small>${j.tier}</small></div>` : `<div class="stamp none">未<br>判定</div>`}
+    </div>
+    <div class="i-mid">
+      <span class="tag st-${it['ステータス']}">${it['ステータス']||''}</span>
+      <span class="tag">${it['プラットフォーム']||''}</span>
+      ${daysTag}
+    </div>
+    <div class="i-money">
+      <span class="buy num">仕入 ${yen(realCost(it))}</span>
+      <span class="sell num">${sellShow}</span>
+      ${pr!=null? `<span class="profit num ${pr>=0?'plus':'minus'}">${pr>=0?'+':''}${yen(pr).replace('¥', pr>=0?'¥':'-¥').replace('--','-')}</span>`:''}
+    </div>`;
+  el.querySelector('.i-name').textContent = it['商品名'] || '(名称なし)';
+  el.addEventListener('click', ()=> openForm(it['ID']));
+  return el;
+}
+function renderChips(){
+  const sc = $('statusChips');
+  sc.innerHTML = '';
+  ['','出品前','出品中','入金待ち','取引完了'].forEach(st=>{
+    const b = document.createElement('button');
+    b.className = 'chip' + (statusFilter===st?' on':'');
+    b.textContent = st===''? 'すべて' : st;
+    b.onclick = ()=>{ statusFilter = st; LS.set('statusFilter', st); render(); };
+    sc.appendChild(b);
+  });
+  const sv = $('savedChips');
+  sv.innerHTML = '';
+  const bAdd = document.createElement('button');
+  bAdd.className = 'chip save';
+  bAdd.textContent = '＋ この検索を保存';
+  bAdd.onclick = ()=>{
+    const q = $('q').value.trim();
+    if(!q){ toast('検索欄にキーワードを入れてから保存してください'); return; }
+    if(!savedSearches.includes(q)){ savedSearches.push(q); LS.set('savedSearches', savedSearches); renderChips(); toast('検索条件を保存しました'); }
+  };
+  sv.appendChild(bAdd);
+  savedSearches.forEach((q,i)=>{
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.innerHTML = '<span></span><span class="x">✕</span>';
+    b.firstChild.textContent = q;
+    b.firstChild.onclick = e=>{ $('q').value=q; onSearch(); };
+    b.onclick = ()=>{ $('q').value=q; onSearch(); };
+    b.lastChild.onclick = e=>{ e.stopPropagation(); savedSearches.splice(i,1); LS.set('savedSearches',savedSearches); renderChips(); };
+    sv.appendChild(b);
+  });
+}
+function onSearch(){
+  $('qClear').classList.toggle('on', $('q').value!=='');
+  render();
+}
+
+/* ============ フォーム ============ */
+function switchView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  $(v).classList.add('on');
+  ['navList','navAdd','navSettings'].forEach(n=>$(n).classList.remove('on'));
+  if(v==='viewList') $('navList').classList.add('on');
+  if(v==='viewForm') $('navAdd').classList.add('on');
+  if(v==='viewSettings') $('navSettings').classList.add('on');
+  const listMode = v==='viewList';
+  $('hdr').style.display = listMode? '' : 'none';
+  $('statusChips').style.display = listMode? '' : 'none';
+  $('savedChips').style.display = listMode? '' : 'none';
+  document.querySelector('.summary').style.display = listMode? '' : 'none';
+  $('fabAdd').style.display = listMode? '' : 'none';
+  window.scrollTo(0,0);
+}
+function openForm(id){
+  editingId = id || null;
+  const it = id ? items.find(x=>String(x['ID'])===String(id)) : null;
+  $('formTitle').textContent = it? '商品を編集' : '商品を登録';
+  $('btnDelete').style.display = it? '' : 'none';
+  const get = k => it? (it[k]??'') : '';
+  ['商品名','仕入れ元','備考'].forEach(k=> $('f'+k).value = get(k));
+  ['ステータス','プラットフォーム','種類'].forEach(k=> $('f'+k).value = get(k) || $('f'+k).options[0].value);
+  ['販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価','元値','使用ポイント','使用クーポン','ポイント付与']
+    .forEach(k=>{ const v = get(k); $('f'+k).value = (v===''||v==null||num(v)===0 && String(v).trim()==='')? '' : (v===0?'':v); });
+  ['仕入日','出品日','発送日','取引日','取引完了日'].forEach(k=> $('f'+k).value = normDate(get(k)));
+  if(!it) $('f仕入日').value = today();
+  const hasDenno = num(get('元値'))>0 || num(get('使用ポイント'))>0 || num(get('使用クーポン'))>0 || num(get('ポイント付与'))>0;
+  $('dennoCard').style.display = hasDenno? '' : 'none';
+  $('btnDenno').textContent = hasDenno? '▾ 電脳仕入れの詳細を閉じる' : '▸ 電脳仕入れの詳細を開く（元値・ポイント・クーポン）';
+  updateSrcList();
+  liveCalc();
+  switchView('viewForm');
+}
+function formItem(){
+  const it = {};
+  it['ID'] = editingId || '';
+  ['商品名','仕入れ元','備考','ステータス','プラットフォーム','種類'].forEach(k=> it[k] = $('f'+k).value.trim? $('f'+k).value.trim() : $('f'+k).value);
+  ['販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価','元値','使用ポイント','使用クーポン','ポイント付与']
+    .forEach(k=>{ const v = $('f'+k).value.trim(); it[k] = v===''? '' : num(v); });
+  ['仕入日','出品日','発送日','取引日','取引完了日'].forEach(k=> it[k] = $('f'+k).value);
+  return it;
+}
+function liveCalc(){
+  const it = formItem();
+  const be = breakeven(it);
+  $('cBreakeven').textContent = be? yen(be) : '—';
+  const start = num(it['開始価格']);
+  if(be && start>0){
+    const room = start - be;
+    $('cRoom').textContent = room>=0 ? `${yen(room)}（100円下げ×${Math.floor(room/100)}回）` : `${yen(room)}（開始価格が損益分岐を下回っています）`;
+  } else $('cRoom').textContent = '—';
+  const j = judge(it);
+  $('cTier').textContent = j? `${j.tier}帯 ${j.mark}（仕入上限 ${yen(j.cap)}）` : '—';
+  const gan = num(it['元値']);
+  $('cRealCost').textContent = gan>0? yen(gan - num(it['使用ポイント']) - num(it['使用クーポン'])) : '—';
+}
+function updateSrcList(){
+  const dl = $('srcList');
+  const seen = new Set();
+  items.forEach(i=>{ const s=(i['仕入れ元']||'').trim(); if(s) seen.add(s); });
+  dl.innerHTML = [...seen].slice(0,30).map(s=>`<option value="${s.replace(/"/g,'&quot;')}">`).join('');
+}
+async function saveItem(){
+  const it = formItem();
+  if(!it['商品名']){ toast('商品名を入れてください'); return; }
+  if(!settings.url){ toast('先に設定でデータ接続をしてください'); switchView('viewSettings'); return; }
+  $('btnSave').disabled = true;
+  $('btnSave').innerHTML = '<span class="spin"></span>保存中…';
+  try{
+    const r = await apiPost(editingId? {action:'update', item:it} : {action:'add', item:it});
+    if(!r.ok) throw new Error(r.error);
+    it['ID'] = r.id || it['ID'];
+    const idx = items.findIndex(x=>String(x['ID'])===String(it['ID']));
+    if(idx>=0) items[idx]=it; else items.unshift(it);
+    LS.set('cacheItems', items);
+    toast('保存しました');
+    switchView('viewList');
+    render();
+  }catch(e){ toast('保存に失敗: ' + e.message); }
+  $('btnSave').disabled = false;
+  $('btnSave').textContent = '保存する';
+}
+async function deleteItem(){
+  if(!editingId) return;
+  if(!confirm('この商品を削除します。よろしいですか？')) return;
+  try{
+    const r = await apiPost({action:'delete', id: editingId});
+    if(!r.ok) throw new Error(r.error);
+    items = items.filter(x=>String(x['ID'])!==String(editingId));
+    LS.set('cacheItems', items);
+    toast('削除しました');
+    switchView('viewList');
+    render();
+  }catch(e){ toast('削除に失敗: ' + e.message); }
+}
+
+/* ============ CSV ============ */
+function parseCSV(text){
+  const rows=[]; let row=[], cur='', inQ=false;
+  text = text.replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; } else cur+=c; }
+    else if(c==='"') inQ=true;
+    else if(c===','){ row.push(cur); cur=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n')i++; row.push(cur); cur=''; if(row.some(x=>x!=='')) rows.push(row); row=[]; }
+    else cur+=c;
+  }
+  if(cur!==''||row.length){ row.push(cur); if(row.some(x=>x!=='')) rows.push(row); }
+  return rows;
+}
+function parseBiko(biko){
+  const out = {};
+  const map = {'仕入先':'仕入れ元','希望':'開始価格','予想':'予想売価','相場':'相場','元値':'元値','使用ポイント':'使用ポイント','使用クーポン':'使用クーポン','ポイント付与':'ポイント付与'};
+  String(biko||'').split(/\n/).forEach(line=>{
+    const m = line.match(/^\s*(仕入先|希望|予想|相場|底値|元値|使用ポイント|使用クーポン|実際の購入価格|ポイント付与)\s*[:：]\s*(.+)$/);
+    if(!m) return;
+    const key = map[m[1]]; if(!key) return;
+    const val = m[2].trim();
+    if(key==='仕入れ元') out[key] = val;
+    else { const n = numOrNull(val); if(n!=null && n!==0) out[key] = n; }
+  });
+  return out;
+}
+function handleCSV(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let text = reader.result;
+    const rows = parseCSV(text);
+    if(rows.length<2){ toast('データが見つかりません'); return; }
+    const head = rows[0].map(h=>h.trim());
+    const idx = k => head.indexOf(k);
+    if(idx('商品名')<0){ toast('セラーブックのCSV形式ではないようです（商品名列がありません）'); return; }
+    csvRows = rows.slice(1).map(r=>{
+      const g = k => idx(k)>=0? (r[idx(k)]??'').trim() : '';
+      const it = {
+        'ステータス': g('ステータス')||'出品前', '商品名': g('商品名'), 'プラットフォーム': g('プラットフォーム')||'その他', '種類': g('種類')||'衣類',
+        '仕入れ元':'', '仕入日': normDate(g('仕入日')), '出品日': normDate(g('出品日')), '発送日': normDate(g('発送日')),
+        '取引日': normDate(g('取引日')), '取引完了日': normDate(g('取引完了日')),
+        '販売価格': numOrNull(g('販売価格'))??'', '仕入額': numOrNull(g('仕入額'))??'', '手数料': numOrNull(g('手数料'))??'',
+        '送料': numOrNull(g('送料'))??'', '梱包資材': numOrNull(g('梱包資材'))??'', 'その他経費': numOrNull(g('その他経費'))??'',
+        '相場':'', '開始価格':'', '予想売価':'', '元値':'', '使用ポイント':'', '使用クーポン':'', 'ポイント付与':'',
+        '備考': g('備考')
+      };
+      Object.assign(it, parseBiko(g('備考')));
+      if(!it['仕入れ元']){
+        const b = g('備考');
+        const m = b.match(/(オフハウス|セカスト|2nd\s*STREET|セカンドストリート|ヤフオク|メルカリ|ラクマ|トレファク|キングファミリー|ブックオフ)\s*仕入れ?/i);
+        if(m) it['仕入れ元'] = m[1];
+      }
+      return it;
+    }).filter(it=>it['商品名']);
+    const soldN = csvRows.filter(i=>i['ステータス']==='取引完了').length;
+    $('csvPreview').innerHTML = `<div class="calcbox" style="margin-top:10px">
+      <div class="cr"><span>読み込んだ商品</span><b>${csvRows.length}件</b></div>
+      <div class="cr"><span>うち取引完了</span><b>${soldN}件</b></div>
+      <div class="cr"><span>備考メモから項目化</span><b>${csvRows.filter(i=>i['開始価格']!==''||i['予想売価']!==''||i['相場']!==''||i['元値']!=='').length}件</b></div>
+    </div>
+    <div class="note">※ 取り込みは同じCSVにつき1回だけにしてください（2回押すと重複します）</div>`;
+    $('btnImport').style.display='';
+  };
+  reader.readAsText(file, 'utf-8');
+}
+async function runImport(){
+  if(!csvRows || !csvRows.length) return;
+  if(!settings.url){ toast('先にデータ接続を設定してください'); return; }
+  const btn = $('btnImport');
+  btn.disabled = true;
+  let done = 0;
+  try{
+    for(let i=0;i<csvRows.length;i+=40){
+      const chunk = csvRows.slice(i,i+40);
+      btn.innerHTML = `<span class="spin"></span>取り込み中… ${done}/${csvRows.length}`;
+      const r = await apiPost({action:'import', items: chunk});
+      if(!r.ok) throw new Error(r.error);
+      done += chunk.length;
+    }
+    toast(`${done}件を取り込みました`);
+    csvRows = null;
+    $('csvPreview').innerHTML=''; $('csvFile').value=''; btn.style.display='none';
+    await reload(false);
+    switchView('viewList');
+  }catch(e){ toast(`エラー（${done}件までは取込済）: ` + e.message); }
+  btn.disabled = false; btn.textContent = 'この内容で取り込む';
+}
+function exportCSV(){
+  const head = FIELDS.filter(f=>f!=='更新日時');
+  const esc = v => { const s = String(v??''); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lines = [head.join(',')].concat(items.map(it=> head.map(k=>esc(it[k])).join(',')));
+  const blob = new Blob(['\uFEFF'+lines.join('\r\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '収支管理_' + today() + '.csv';
+  a.click();
+}
+
+/* ============ 設定 ============ */
+function loadSettingsUI(){
+  $('sUrl').value = settings.url; $('sKey').value = settings.key;
+  for(const k of ['ヤフオク','メルカリ','ラクマ','その他']) $('fee'+k).value = settings.fees[k];
+}
+async function connTest(){
+  const url = $('sUrl').value.trim(), key = $('sKey').value.trim();
+  if(!url || !key){ $('connMsg').textContent='URLと合言葉を入れてください'; return; }
+  $('connMsg').innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 接続中…';
+  try{
+    const u = new URL(url); u.searchParams.set('action','ping'); u.searchParams.set('key',key);
+    const r = await (await fetch(u.toString())).json();
+    if(!r.ok) throw new Error(r.error);
+    settings.url = url; settings.key = key; LS.set('settings', settings);
+    $('connMsg').textContent = '✅ ' + r.message;
+    toast('接続できました');
+    reload(false);
+  }catch(e){ $('connMsg').textContent = '❌ 接続できません: ' + e.message; }
+}
+
+/* ============ 起動 ============ */
+$('q').addEventListener('input', onSearch);
+$('qClear').onclick = ()=>{ $('q').value=''; onSearch(); };
+$('btnReload').onclick = ()=> reload(true);
+$('fabAdd').onclick = ()=> openForm(null);
+$('navList').onclick = ()=>{ switchView('viewList'); render(); };
+$('navAdd').onclick = ()=> openForm(null);
+$('navSettings').onclick = ()=>{ loadSettingsUI(); switchView('viewSettings'); };
+$('btnDenno').onclick = ()=>{
+  const c = $('dennoCard');
+  const open = c.style.display==='none';
+  c.style.display = open? '':'none';
+  $('btnDenno').textContent = open? '▾ 電脳仕入れの詳細を閉じる' : '▸ 電脳仕入れの詳細を開く（元値・ポイント・クーポン）';
+};
+$('btnSave').onclick = saveItem;
+$('btnCancel').onclick = ()=>{ switchView('viewList'); };
+$('btnDelete').onclick = deleteItem;
+$('btnConnTest').onclick = connTest;
+$('btnFeeSave').onclick = ()=>{
+  for(const k of ['ヤフオク','メルカリ','ラクマ','その他']) settings.fees[k] = parseFloat($('fee'+k).value)||10;
+  LS.set('settings', settings); toast('手数料率を保存しました'); render();
+};
+$('csvFile').addEventListener('change', e=>{ if(e.target.files[0]) handleCSV(e.target.files[0]); });
+$('btnImport').onclick = runImport;
+$('btnExport').onclick = exportCSV;
+document.querySelectorAll('#viewForm input, #viewForm select').forEach(el=> el.addEventListener('input', liveCalc));
+
+render();
+reload(false);
+</script>
+</body>
+</html>
+
