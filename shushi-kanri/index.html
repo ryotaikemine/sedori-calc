@@ -153,6 +153,17 @@ nav button.on{color:var(--indigo);font-weight:700}
 
 <div class="chiprow" id="statusChips"></div>
 <div class="chiprow" id="savedChips"></div>
+<div id="sortBar" style="display:flex;align-items:center;gap:8px;padding:4px 14px 0">
+  <span style="font-size:12px;color:var(--sub);white-space:nowrap">並び順</span>
+  <select id="sortSel" style="width:auto;font-size:13px;padding:6px 10px">
+    <option value="new">登録が新しい順</option>
+    <option value="old">登録が古い順</option>
+    <option value="buyNew">仕入日が新しい順</option>
+    <option value="buyOld">仕入日が古い順</option>
+    <option value="stale">在庫日数が長い順</option>
+    <option value="price">価格が高い順</option>
+  </select>
+</div>
 
 <div class="summary">
   <div class="sum-card"><div class="v num" id="sumCount">0</div><div class="k">表示件数</div></div>
@@ -168,6 +179,16 @@ nav button.on{color:var(--indigo);font-weight:700}
 <section class="view" id="viewForm">
   <div class="pagehead" id="formTitle">商品を登録</div>
   <div class="formwrap">
+    <div class="fcard" id="bulkCard" style="border:1.5px dashed var(--indigo)">
+      <h3>📸 まとめ登録（写真だけ先に一括）</h3>
+      <div class="note" style="margin:0 0 8px">写真を複数選ぶと「1枚＝1商品」でまとめて登録します。商品名・仕入額は空のままでOK。あとから各カードを開いて入力してください。</div>
+      <div class="frow"><label>仕入れ元（全商品に共通で付きます・空欄OK）</label>
+        <input id="bulkSrc" placeholder="例: セカンドストリート◯◯店" list="srcList"></div>
+      <div class="frow"><label>写真を選ぶ（複数選択OK）</label>
+        <input type="file" id="bulkFiles" accept="image/*" multiple></div>
+      <button class="btn primary" id="btnBulk" style="display:none">まとめて登録する</button>
+      <div class="note" id="bulkMsg" style="display:none"></div>
+    </div>
     <div class="fcard">
       <h3>基本情報</h3>
       <div class="frow"><label>商品名</label><input id="f商品名" placeholder="例: Burberry ゴルフ ポロシャツ L 紺"></div>
@@ -249,6 +270,40 @@ nav button.on{color:var(--indigo);font-weight:700}
   </div>
 </section>
 
+<!-- ============ 分析 ============ -->
+<section class="view" id="viewStats">
+  <div class="pagehead" style="display:flex;align-items:center;gap:6px">
+    <span>分析</span><span style="flex:1"></span>
+    <button id="mPrev" style="font-size:16px;padding:6px 12px;color:var(--indigo)">◀</button>
+    <b id="mLabel" class="num" style="font-size:15px"></b>
+    <button id="mNext" style="font-size:16px;padding:6px 12px;color:var(--indigo)">▶</button>
+  </div>
+  <div class="summary" style="flex-wrap:wrap">
+    <div class="sum-card"><div class="v num" id="stSales">¥0</div><div class="k">売上</div></div>
+    <div class="sum-card"><div class="v num" id="stCost">¥0</div><div class="k">コスト</div></div>
+    <div class="sum-card"><div class="v num" id="stProfit">¥0</div><div class="k">純利益</div></div>
+    <div class="sum-card"><div class="v num" id="stRate">—</div><div class="k">利益率</div></div>
+  </div>
+  <div class="formwrap" style="padding-top:10px">
+    <div class="fcard"><h3>月別推移（6ヶ月）</h3>
+      <div id="chartWrap"></div>
+      <div style="display:flex;gap:14px;font-size:11px;color:var(--sub);margin-top:4px;justify-content:center">
+        <span><b style="color:#2E4E79">━</b> 売上</span>
+        <span><b style="color:#B3372B">━</b> コスト</span>
+        <span><b style="color:#20794D">━</b> 純利益</span>
+      </div>
+    </div>
+    <div class="fcard"><h3>当月の仕入れ</h3>
+      <div class="calcbox">
+        <div class="cr"><span>仕入れ件数</span><b class="num" id="stBuyN">0件</b></div>
+        <div class="cr"><span>仕入れ金額（実質）</span><b class="num" id="stBuyAmt">¥0</b></div>
+      </div>
+    </div>
+    <div class="fcard"><h3>プラットフォーム別（当月の利益）</h3><div id="pfTable"></div></div>
+    <div class="fcard"><h3>価格帯（ティア）別（当月の利益）</h3><div id="tierTable"></div></div>
+  </div>
+</section>
+
 <!-- ============ 設定 ============ -->
 <section class="view" id="viewSettings">
   <div class="pagehead">設定</div>
@@ -289,6 +344,7 @@ nav button.on{color:var(--indigo);font-weight:700}
 
 <nav>
   <button id="navList" class="on"><span class="ni">📋</span>一覧</button>
+  <button id="navStats"><span class="ni">📊</span>分析</button>
   <button id="navAdd"><span class="ni">＋</span>登録</button>
   <button id="navSettings"><span class="ni">⚙</span>設定</button>
 </nav>
@@ -306,6 +362,7 @@ let settings = LS.get('settings', {url:'', key:'', fees:{'ヤフオク':10,'メ�
 let savedSearches = LS.get('savedSearches', []);
 let items = LS.get('cacheItems', []);
 let statusFilter = LS.get('statusFilter', '');
+let sortMode = LS.get('sortMode', 'new');
 let editingId = null;
 let csvRows = null;
 
@@ -419,13 +476,26 @@ function matches(it, query){
   }
   return true;
 }
+function idTime(it){ const m = String(it['ID']||'').match(/ITEM-([0-9]+)/); return m? parseInt(m[1],10) : 0; }
+function comparator(){
+  const bd = it => normDate(it['仕入日'])||'';
+  switch(sortMode){
+    case 'old': return (a,b)=> idTime(a)-idTime(b);
+    case 'buyNew': return (a,b)=> bd(b).localeCompare(bd(a));
+    case 'buyOld': return (a,b)=> bd(a).localeCompare(bd(b));
+    case 'stale': return (a,b)=> ((stockDays(b)??-1)-(stockDays(a)??-1));
+    case 'price': return (a,b)=> basisPrice(b)-basisPrice(a);
+    default: return (a,b)=> idTime(b)-idTime(a);
+  }
+}
 function filtered(){
   const q = $('q').value;
   let arr = items.filter(it => matches(it, q));
-  if(statusFilter) arr = arr.filter(it => it['ステータス']===statusFilter);
-  // 並び: 未完了を仕入日昇順(古い在庫が上) → 完了を取引日降順
-  const done = arr.filter(i=>i['ステータス']==='取引完了').sort((a,b)=> normDate(b['取引日']||b['取引完了日']).localeCompare(normDate(a['取引日']||a['取引完了日'])));
-  const live = arr.filter(i=>i['ステータス']!=='取引完了').sort((a,b)=> normDate(a['仕入日']).localeCompare(normDate(b['仕入日'])));
+  if(statusFilter==='__noname__') arr = arr.filter(it => !String(it['商品名']||'').trim());
+  else if(statusFilter) arr = arr.filter(it => it['ステータス']===statusFilter);
+  const c = comparator();
+  const done = arr.filter(i=>i['ステータス']==='取引完了').sort(c);
+  const live = arr.filter(i=>i['ステータス']!=='取引完了').sort(c);
   return live.concat(done);
 }
 
@@ -478,7 +548,7 @@ function card(it){
       <span class="sell num">${sellShow}</span>
       ${pr!=null? `<span class="profit num ${pr>=0?'plus':'minus'}">${pr>=0?'+':''}${yen(pr).replace('¥', pr>=0?'¥':'-¥').replace('--','-')}</span>`:''}
     </div>`;
-  el.querySelector('.i-name').textContent = it['商品名'] || '(名称なし)';
+  el.querySelector('.i-name').textContent = it['商品名'] || '(名称未設定)';
   const tEl = el.querySelector('.thumb'); if(tEl) tEl.src = imgUrl;
   el.addEventListener('click', ()=> openForm(it['ID']));
   return el;
@@ -486,10 +556,10 @@ function card(it){
 function renderChips(){
   const sc = $('statusChips');
   sc.innerHTML = '';
-  ['','出品前','出品中','入金待ち','取引完了'].forEach(st=>{
+  ['','出品前','出品中','入金待ち','取引完了','__noname__'].forEach(st=>{
     const b = document.createElement('button');
     b.className = 'chip' + (statusFilter===st?' on':'');
-    b.textContent = st===''? 'すべて' : st;
+    b.textContent = st===''? 'すべて' : (st==='__noname__'? '名称未設定' : st);
     b.onclick = ()=>{ statusFilter = st; LS.set('statusFilter', st); render(); };
     sc.appendChild(b);
   });
@@ -524,14 +594,16 @@ function onSearch(){
 function switchView(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
   $(v).classList.add('on');
-  ['navList','navAdd','navSettings'].forEach(n=>$(n).classList.remove('on'));
+  ['navList','navStats','navAdd','navSettings'].forEach(n=>$(n).classList.remove('on'));
   if(v==='viewList') $('navList').classList.add('on');
   if(v==='viewForm') $('navAdd').classList.add('on');
   if(v==='viewSettings') $('navSettings').classList.add('on');
+  if(v==='viewStats') $('navStats').classList.add('on');
   const listMode = v==='viewList';
   $('hdr').style.display = listMode? '' : 'none';
   $('statusChips').style.display = listMode? '' : 'none';
   $('savedChips').style.display = listMode? '' : 'none';
+  $('sortBar').style.display = listMode? 'flex' : 'none';
   document.querySelector('.summary').style.display = listMode? '' : 'none';
   $('fabAdd').style.display = listMode? '' : 'none';
   window.scrollTo(0,0);
@@ -541,6 +613,7 @@ function openForm(id){
   const it = id ? items.find(x=>String(x['ID'])===String(id)) : null;
   $('formTitle').textContent = it? '商品を編集' : '商品を登録';
   $('btnDelete').style.display = it? '' : 'none';
+  $('bulkCard').style.display = it? 'none' : '';
   const get = k => it? (it[k]??'') : '';
   ['商品名','仕入れ元','備考','画像'].forEach(k=> $('f'+k).value = get(k));
   updateImgPrev();
@@ -589,7 +662,6 @@ function updateSrcList(){
 }
 async function saveItem(){
   const it = formItem();
-  if(!it['商品名']){ toast('商品名を入れてください'); return; }
   if(!settings.url){ toast('先に設定でデータ接続をしてください'); switchView('viewSettings'); return; }
   $('btnSave').disabled = true;
   $('btnSave').innerHTML = '<span class="spin"></span>保存中…';
@@ -786,6 +858,138 @@ async function uploadImage(file){
     msg.textContent = '❌ アップロードできませんでした: ' + e.message;
   }
 }
+
+/* ============ 分析 ============ */
+let statsMonth = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); })();
+function shiftMonth(mk, n){ const p = mk.split('-'); const d = new Date(Number(p[0]), Number(p[1])-1+n, 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+function soldMonthOf(it){ const d = normDate(it['取引完了日']) || normDate(it['取引日']); return d? d.slice(0,7) : ''; }
+function soldStats(mk){
+  const arr = items.filter(it=> it['ステータス']==='取引完了' && soldMonthOf(it)===mk);
+  let sales=0, cost=0;
+  arr.forEach(it=>{
+    const p = num(it['販売価格']);
+    sales += p;
+    cost += realCost(it) + expenses(it) + feeOf(it, p);
+  });
+  return {arr: arr, sales: sales, cost: cost, profit: sales - cost};
+}
+function groupTable(arr, keyFn){
+  const g = {};
+  arr.forEach(it=>{
+    const k = keyFn(it);
+    if(!g[k]) g[k] = {n:0, sales:0, profit:0};
+    const p = num(it['販売価格']);
+    g[k].n++; g[k].sales += p;
+    g[k].profit += p - (realCost(it) + expenses(it) + feeOf(it, p));
+  });
+  const keys = Object.keys(g);
+  if(!keys.length) return '<div class="note">この月に売れた商品はありません</div>';
+  keys.sort((a,b)=> g[b].profit - g[a].profit);
+  let h = '<div class="calcbox">';
+  keys.forEach(k=>{
+    const o = g[k];
+    h += '<div class="cr"><span>' + k + '（' + o.n + '件）</span><b class="num">' + yen(o.profit) + '<small style="font-weight:400;color:var(--sub)">｜売上 ' + yen(o.sales) + '</small></b></div>';
+  });
+  return h + '</div>';
+}
+function drawChart(){
+  const months = [];
+  for(let i=5;i>=0;i--) months.push(shiftMonth(statsMonth, -i));
+  const data = months.map(mk=> soldStats(mk));
+  const W=640, H=230, P=38;
+  const maxV = Math.max(1000, ...data.map(d=>d.sales), ...data.map(d=>d.cost), ...data.map(d=>Math.max(0,d.profit)));
+  const X = i=> P + i * (W - P*2) / (months.length - 1);
+  const Y = v=> H - P - Math.max(0, v) / maxV * (H - P*2);
+  function line(key, color){
+    let pts = '', dots = '';
+    data.forEach((d,i)=>{
+      pts += X(i) + ',' + Y(d[key]) + ' ';
+      dots += '<circle cx="' + X(i) + '" cy="' + Y(d[key]) + '" r="3.5" fill="#fff" stroke="' + color + '" stroke-width="2"/>';
+    });
+    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"/>' + dots;
+  }
+  let grid = '';
+  [0, 0.5, 1].forEach(f=>{
+    const v = maxV * f;
+    grid += '<line x1="' + P + '" y1="' + Y(v) + '" x2="' + (W-P) + '" y2="' + Y(v) + '" stroke="#DDE0DA"/>';
+    grid += '<text x="' + (P-5) + '" y="' + (Y(v)+3) + '" font-size="10" fill="#6A7066" text-anchor="end">' + (v>=10000? (Math.round(v/1000)/10) + '万' : Math.round(v)) + '</text>';
+  });
+  let labels = '';
+  months.forEach((mk,i)=>{ labels += '<text x="' + X(i) + '" y="' + (H-10) + '" font-size="10" fill="#6A7066" text-anchor="middle">' + parseInt(mk.slice(5),10) + '月</text>'; });
+  $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + grid + labels + line('sales','#2E4E79') + line('cost','#B3372B') + line('profit','#20794D') + '</svg>';
+}
+function renderStats(){
+  $('mLabel').textContent = statsMonth.replace('-', '年') + '月';
+  const s = soldStats(statsMonth);
+  $('stSales').textContent = yen(s.sales);
+  $('stCost').textContent = yen(s.cost);
+  $('stProfit').textContent = yen(s.profit);
+  $('stRate').textContent = s.sales>0? Math.round(s.profit / s.sales * 100) + '%' : '—';
+  const buys = items.filter(it=> (normDate(it['仕入日'])||'').slice(0,7)===statsMonth);
+  $('stBuyN').textContent = buys.length + '件';
+  $('stBuyAmt').textContent = yen(buys.reduce((a,it)=> a + realCost(it), 0));
+  $('pfTable').innerHTML = groupTable(s.arr, it=> it['プラットフォーム'] || 'その他');
+  $('tierTable').innerHTML = groupTable(s.arr, it=>{
+    const p = num(it['販売価格']);
+    const t = TIERS.find(x=> p>=x.min && p<x.max) || TIERS[TIERS.length-1];
+    return t.name + '帯（' + (t.max===Infinity? t.min.toLocaleString() + '円〜' : t.min.toLocaleString() + '〜' + (t.max-1).toLocaleString() + '円') + '）';
+  });
+  drawChart();
+}
+$('navStats').onclick = ()=>{ renderStats(); switchView('viewStats'); };
+$('mPrev').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, -1); renderStats(); };
+$('mNext').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, 1); renderStats(); };
+$('sortSel').value = sortMode;
+$('sortSel').onchange = ()=>{ sortMode = $('sortSel').value; LS.set('sortMode', sortMode); render(); };
+
+/* ============ まとめ登録 ============ */
+let bulkList = null;
+$('bulkFiles').addEventListener('change', e=>{
+  bulkList = Array.from(e.target.files || []);
+  if(bulkList.length){
+    $('btnBulk').style.display = '';
+    $('btnBulk').textContent = bulkList.length + '枚の写真 → ' + bulkList.length + '商品をまとめて登録';
+  }
+});
+async function runBulk(){
+  if(!bulkList || !bulkList.length) return;
+  if(!settings.url){ toast('先に設定でデータ接続をしてください'); switchView('viewSettings'); return; }
+  const btn = $('btnBulk'); btn.disabled = true;
+  const msg = $('bulkMsg'); msg.style.display = '';
+  const urls = new Array(bulkList.length).fill('');
+  let doneN = 0;
+  async function upOne(i){
+    try{
+      const b64 = await resizeImage(bulkList[i]);
+      const r = await apiPost({action:'uploadImage', data:b64, mime:'image/jpeg'});
+      if(r.ok) urls[i] = r.url;
+    }catch(err){}
+    doneN++;
+    msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真アップロード中… ' + doneN + ' / ' + bulkList.length;
+  }
+  for(let i=0; i<bulkList.length; i+=3){
+    const batch = [];
+    for(let j=i; j<Math.min(i+3, bulkList.length); j++) batch.push(upOne(j));
+    await Promise.all(batch);
+  }
+  msg.textContent = '商品を登録中…';
+  const src = $('bulkSrc').value.trim();
+  const newItems = urls.map(u=>({ '商品名':'', 'ステータス':'出品前', 'プラットフォーム':'ヤフオク', '種類':'衣類', '仕入れ元': src, '仕入日': today(), '画像': u }));
+  try{
+    const r = await apiPost({action:'import', items:newItems});
+    if(!r.ok) throw new Error(r.error);
+    msg.style.display = 'none';
+    $('bulkFiles').value = ''; bulkList = null;
+    btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'まとめて登録する';
+    toast(newItems.length + '商品を登録しました。名前と仕入額は後からゆっくりどうぞ');
+    await reload(false);
+    switchView('viewList');
+  }catch(err){
+    msg.textContent = '❌ 登録に失敗しました: ' + err.message;
+    btn.disabled = false;
+  }
+}
+$('btnBulk').onclick = runBulk;
 
 /* ============ 起動 ============ */
 $('q').addEventListener('input', onSearch);
