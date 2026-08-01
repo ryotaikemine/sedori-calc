@@ -291,7 +291,12 @@ nav button.on{color:var(--indigo);font-weight:700}
         <span><b style="color:#2E4E79">━</b> 売上</span>
         <span><b style="color:#B3372B">━</b> コスト</span>
         <span><b style="color:#20794D">━</b> 純利益</span>
+        <span><b style="color:#8A8F86">┅</b> 仕入れ（支出）</span>
       </div>
+    </div>
+    <div class="fcard"><h3>今月のお金の出入り</h3>
+      <div id="cashBox"></div>
+      <div class="note">※上のグラフの3本（売上・コスト・純利益）は「売れた商品」の損益です。仕入れの点線は実際にお金が出ていったタイミングを表します。</div>
     </div>
     <div class="fcard"><h3>当月の仕入れ</h3>
       <div class="calcbox">
@@ -873,6 +878,10 @@ function soldStats(mk){
   });
   return {arr: arr, sales: sales, cost: cost, profit: sales - cost};
 }
+function buyOfMonth(mk){
+  const arr = items.filter(it=> (normDate(it['仕入日'])||'').slice(0,7)===mk);
+  return {n: arr.length, amt: arr.reduce((a,it)=> a + realCost(it), 0)};
+}
 function groupTable(arr, keyFn){
   const g = {};
   arr.forEach(it=>{
@@ -895,18 +904,19 @@ function groupTable(arr, keyFn){
 function drawChart(){
   const months = [];
   for(let i=5;i>=0;i--) months.push(shiftMonth(statsMonth, -i));
-  const data = months.map(mk=> soldStats(mk));
+  const data = months.map(mk=>{ const s = soldStats(mk); s.buy = buyOfMonth(mk).amt; return s; });
   const W=640, H=230, P=38;
-  const maxV = Math.max(1000, ...data.map(d=>d.sales), ...data.map(d=>d.cost), ...data.map(d=>Math.max(0,d.profit)));
+  const maxV = Math.max(1000, ...data.map(d=>d.sales), ...data.map(d=>d.cost), ...data.map(d=>Math.max(0,d.profit)), ...data.map(d=>d.buy));
   const X = i=> P + i * (W - P*2) / (months.length - 1);
   const Y = v=> H - P - Math.max(0, v) / maxV * (H - P*2);
-  function line(key, color){
+  function line(key, color, dashed){
     let pts = '', dots = '';
     data.forEach((d,i)=>{
       pts += X(i) + ',' + Y(d[key]) + ' ';
       dots += '<circle cx="' + X(i) + '" cy="' + Y(d[key]) + '" r="3.5" fill="#fff" stroke="' + color + '" stroke-width="2"/>';
     });
-    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"/>' + dots;
+    const dash = dashed? ' stroke-dasharray="5,4"' : '';
+    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"' + dash + '/>' + dots;
   }
   let grid = '';
   [0, 0.5, 1].forEach(f=>{
@@ -916,7 +926,7 @@ function drawChart(){
   });
   let labels = '';
   months.forEach((mk,i)=>{ labels += '<text x="' + X(i) + '" y="' + (H-10) + '" font-size="10" fill="#6A7066" text-anchor="middle">' + parseInt(mk.slice(5),10) + '月</text>'; });
-  $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + grid + labels + line('sales','#2E4E79') + line('cost','#B3372B') + line('profit','#20794D') + '</svg>';
+  $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + grid + labels + line('buy','#8A8F86',true) + line('sales','#2E4E79') + line('cost','#B3372B') + line('profit','#20794D') + '</svg>';
 }
 function renderStats(){
   $('mLabel').textContent = statsMonth.replace('-', '年') + '月';
@@ -928,6 +938,18 @@ function renderStats(){
   const buys = items.filter(it=> (normDate(it['仕入日'])||'').slice(0,7)===statsMonth);
   $('stBuyN').textContent = buys.length + '件';
   $('stBuyAmt').textContent = yen(buys.reduce((a,it)=> a + realCost(it), 0));
+  const bm = buyOfMonth(statsMonth);
+  const diff = s.sales - bm.amt;
+  let cls, icon, msg;
+  if(bm.amt === 0 && s.sales === 0){ cls='#6A7066'; icon='—'; msg='この月はまだ動きがありません'; }
+  else if(diff >= 0){ cls='#20794D'; icon='✅'; msg='売れた金額のほうが多く、手元のお金は増えています'; }
+  else if(s.sales > 0 && bm.amt > s.sales * 1.5){ cls='#B3372B'; icon='⚠️'; msg='仕入れが売上を大きく超えています。在庫が膨らみ、手元の資金が減っています'; }
+  else { cls='#B3372B'; icon='⚠️'; msg='仕入れが売上を上回っています。使いすぎに注意してください'; }
+  $('cashBox').innerHTML = '<div class="calcbox">' +
+    '<div class="cr"><span>入ってきたお金（売上）</span><b class="num">' + yen(s.sales) + '</b></div>' +
+    '<div class="cr"><span>出ていったお金（仕入れ）</span><b class="num">' + yen(bm.amt) + '</b></div>' +
+    '<div class="cr" style="border-top:1px solid var(--line);padding-top:6px"><span>差し引き</span><b class="num" style="color:' + cls + '">' + (diff>=0? '+' : '') + yen(diff) + '</b></div>' +
+    '</div><div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:' + (diff>=0? 'var(--good-pale)' : 'var(--bad-pale)') + ';font-size:12.5px;line-height:1.5;color:' + cls + '">' + icon + ' ' + msg + '</div>';
   $('pfTable').innerHTML = groupTable(s.arr, it=> it['プラットフォーム'] || 'その他');
   $('tierTable').innerHTML = groupTable(s.arr, it=>{
     const p = num(it['販売価格']);
