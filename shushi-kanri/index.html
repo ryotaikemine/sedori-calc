@@ -538,6 +538,7 @@ function card(it){
   }
   const sellShow = sold ? ('<span style="color:var(--sub);font-weight:400;font-size:12px">売却 </span>' + yen(num(it['販売価格']))) : (num(it['開始価格'])? ('<span style="color:var(--sub);font-weight:400;font-size:12px">予定 </span>' + yen(num(it['開始価格'])) + '〜') : (num(it['予想売価'])? ('<span style="color:var(--sub);font-weight:400;font-size:12px">予想 </span>' + yen(num(it['予想売価']))) : ''));
   const imgUrl = String(it['画像']||'').trim();
+  const esc2 = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const jpDate = ds => { if(!ds) return ''; const p = ds.split('-'); return p.length===3? (p[0].slice(2) + '/' + Number(p[1]) + '/' + Number(p[2])) : ds; };
   const soldDate = normDate(it['取引完了日']) || normDate(it['取引日']);
   const sd = sold ? (function(){ const f = normDate(it['出品日']) || normDate(it['仕入日']); if(!f || !soldDate) return null; const n = Math.round((new Date(soldDate) - new Date(f))/86400000); return n>=0? n : null; })() : null;
@@ -545,7 +546,7 @@ function card(it){
   const rate = (sold && price>0)? (Math.round(pr/price*1000)/10) : null;
   const pfMap = {'ヤフオク':'#D9A520','メルカリ':'#E8544F','ラクマ':'#E87BA6','メルカリShops':'#E8544F'};
   const pfName = it['プラットフォーム'] || 'その他';
-  const pfTag = '<span class="tag" style="background:' + (pfMap[pfName]||'#9AA096') + ';color:#fff;border:none">' + esc(pfName) + '</span>';
+  const pfTag = '<span class="tag" style="background:' + (pfMap[pfName]||'#9AA096') + ';color:#fff;border:none">' + esc2(pfName) + '</span>';
   const dateTxt = sold ? (jpDate(soldDate) + (sd!=null? ' ・ ' + sd + '日で売却' : '')) : ('仕入 ' + jpDate(normDate(it['仕入日'])));
   const cell = (lb, v, col) => '<div><div style="font-size:9.5px;color:var(--sub);line-height:1.2">' + lb + '</div><div class="num" style="font-size:13px;font-weight:700' + (col? ';color:' + col : '') + '">' + v + '</div></div>';
   let money;
@@ -569,11 +570,11 @@ function card(it){
     + (imgUrl? '<img class="thumb" src="' + imgUrl + '" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '<div class="thumb"></div>')
     + '<div style="flex:1;min-width:0">'
     +   '<div style="display:flex;gap:6px;align-items:flex-start">'
-    +     '<div class="i-name" style="flex:1">' + esc(String(it['商品名']||'').trim() || '(名称未設定)') + '</div>'
+    +     '<div class="i-name" style="flex:1">' + esc2(String(it['商品名']||'').trim() || '(名称未設定)') + '</div>'
     +     (j.verdict? '<span class="stamp ' + j.verdict + '">' + j.mark + '<small>' + j.tier + '</small></span>' : '<span class="stamp none"></span>')
     +   '</div>'
     +   '<div class="i-mid">'
-    +     '<span class="tag st-' + (it['ステータス']||'') + '">' + esc(it['ステータス']||'') + '</span>'
+    +     '<span class="tag st-' + (it['ステータス']||'') + '">' + esc2(it['ステータス']||'') + '</span>'
     +     pfTag
     +     '<span style="font-size:11px;color:var(--sub)">' + dateTxt + '</span>'
     +     daysTag
