@@ -345,7 +345,6 @@ nav button.on{color:var(--indigo);font-weight:700}
   </div>
 </section>
 
-<button class="fab" id="fabAdd" aria-label="商品を追加">＋</button>
 
 <nav>
   <button id="navList" class="on"><span class="ni">📋</span>一覧</button>
@@ -610,7 +609,6 @@ function switchView(v){
   $('savedChips').style.display = listMode? '' : 'none';
   $('sortBar').style.display = listMode? 'flex' : 'none';
   document.querySelector('.summary').style.display = listMode? '' : 'none';
-  $('fabAdd').style.display = listMode? '' : 'none';
   window.scrollTo(0,0);
 }
 function openForm(id){
@@ -1017,7 +1015,6 @@ $('btnBulk').onclick = runBulk;
 $('q').addEventListener('input', onSearch);
 $('qClear').onclick = ()=>{ $('q').value=''; onSearch(); };
 $('btnReload').onclick = ()=> reload(true);
-$('fabAdd').onclick = ()=> openForm(null);
 $('navList').onclick = ()=>{ switchView('viewList'); render(); };
 $('navAdd').onclick = ()=> openForm(null);
 $('navSettings').onclick = ()=>{ loadSettingsUI(); switchView('viewSettings'); };
