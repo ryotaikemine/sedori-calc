@@ -418,6 +418,42 @@ input[type="number"] { -moz-appearance: textfield; }
   }
   function getTier(price) { return tiers.find(t => price >= t.min && price < t.max); }
 
+  // ある販売価格ちょうどで、ティア表どおりに計算した仕入れ上限
+  function rawTierLimit(sellPrice, shipOut, feeRate) {
+    const tier = getTier(sellPrice);
+    if (!tier) return null;
+    const revenue = sellPrice * (1 - feeRate) - shipOut;
+    const roiLimit = revenue / (1 + tier.roi);
+    const profitLimit = revenue - tier.minProfit;
+    return {
+      sell: sellPrice,
+      tier: tier,
+      revenue: revenue,
+      limit: Math.min(roiLimit, profitLimit),
+      binding: roiLimit < profitLimit
+        ? 'ROI ' + Math.round(tier.roi * 100) + '%'
+        : '最低利益 ' + tier.minProfit.toLocaleString() + '円'
+    };
+  }
+
+  // ティア境界の「逆転」対策。
+  //   最低利益が段で上がるため、販売価格が10円上がっただけで仕入れ上限が
+  //   1,000円以上下がる（＝高く売れる想定にすると買える額が減る）ことがあった。
+  //   販売価格は自分で決められる以上、¥10,000で売れる物は¥9,990でも売れるので、
+  //   その価格以下でいちばん有利になる出し方の上限を採用する。
+  //   ティア表の数字は変えていない（採用した上限は必ずどこかの販売価格で基準を満たす）。
+  function bestTierLimit(sellPrice, shipOut, feeRate) {
+    let best = rawTierLimit(sellPrice, shipOut, feeRate);
+    if (!best) return null;
+    for (const t of tiers) {
+      const top = t.max - 1;                       // その帯で出せる一番高い販売価格
+      if (!isFinite(top) || top >= sellPrice) continue;
+      const cand = rawTierLimit(top, shipOut, feeRate);
+      if (cand && cand.limit > best.limit) best = cand;
+    }
+    return best;
+  }
+
   function hideTargetBlock() {
     els.targetBlock.style.display = 'none';
     els.bindingSummary.style.display = 'none';
@@ -453,12 +489,11 @@ input[type="number"] { -moz-appearance: textfield; }
 
     const tier = getTier(sellPrice);
     const revenue = sellPrice * (1 - feeRate) - shipOut;
-    const roiLimit = revenue / (1 + tier.roi);
-    const profitLimit = revenue - tier.minProfit;
-    const tierLimit = Math.min(roiLimit, profitLimit);
-    const tierBinding = roiLimit < profitLimit
-      ? 'ROI ' + Math.round(tier.roi * 100) + '%'
-      : '最低利益 ' + tier.minProfit.toLocaleString() + '円';
+    const here = rawTierLimit(sellPrice, shipOut, feeRate);   // この価格ちょうど
+    const best = bestTierLimit(sellPrice, shipOut, feeRate);  // この価格以下でいちばん有利
+    const tierLimit = best.limit;
+    const tierBinding = best.binding;
+    const adjusted = best.sell !== sellPrice;                 // 境界の谷を埋めたか
 
     // ティア基準の表示
     if (tierLimit <= 0) {
@@ -466,14 +501,21 @@ input[type="number"] { -moz-appearance: textfield; }
       els.limitMeta.textContent = tier.label + '・' + tierBinding + '・手数料と送料を引くと赤字';
     } else {
       els.limitValue.textContent = yen(tierLimit);
-      els.limitMeta.textContent = tier.label + '・' + tierBinding + 'が効いている';
+      let meta = tier.label + '・' + tierBinding + 'が効いている';
+      if (adjusted) {
+        meta = best.tier.label + '・' + tierBinding + 'が効いている'
+          + '｜' + yen(best.sell) + 'で出す前提（' + tier.label + 'の谷を回避。'
+          + yen(sellPrice) + 'ちょうどだと ' + yen(here.limit) + '）';
+      }
+      if (shipIn > 0) meta = '入札は ' + yen(tierLimit - shipIn) + ' まで｜' + meta;
+      els.limitMeta.textContent = meta;
     }
 
     // 目標利益基準の表示
     let effectiveLimit = tierLimit;
     let activeBinding = 'tier';
     if (hasTargetProfit) {
-      const targetLimit = revenue - targetProfit;
+      const targetLimit = Math.min(revenue, best.revenue) - targetProfit;
       els.targetBlock.style.display = 'block';
       els.targetLabel.textContent = '目標利益基準の仕入れ上限（' + yen(targetProfit) + '利益）';
       if (targetLimit <= 0) {

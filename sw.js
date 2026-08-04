@@ -1,6 +1,6 @@
 // Service Worker for sedori-calc (offline support)
 // Bump CACHE_VERSION when you update index.html or any cached file.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = 'sedori-calc-' + CACHE_VERSION;
 
 // Files to cache for offline use.
