@@ -453,8 +453,21 @@ async function apiGet(params){
 }
 async function apiPost(body){
   body.key = settings.key;
-  const res = await fetch(settings.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
-  return res.json();
+  let lastErr = null;
+  for(let attempt = 0; attempt < 3; attempt++){
+    try{
+      const res = await fetch(settings.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
+      const txt = await res.text();
+      if(txt.trim().charAt(0) === '{') return JSON.parse(txt);
+      lastErr = new Error('busy');
+    }catch(e){
+      lastErr = e;
+    }
+    if(attempt < 2){
+      await new Promise(function(rs){ setTimeout(rs, 1200 * (attempt + 1)); });
+    }
+  }
+  throw (lastErr || new Error('通信できませんでした'));
 }
 async function reload(showToast){
   if(!settings.url){ $('syncInfo').textContent='未接続（設定へ）'; return; }
