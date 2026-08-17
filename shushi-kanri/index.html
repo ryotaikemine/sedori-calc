@@ -571,7 +571,7 @@ function card(it){
     + '<div style="flex:1;min-width:0">'
     +   '<div style="display:flex;gap:6px;align-items:flex-start">'
     +     '<div class="i-name" style="flex:1">' + esc2(String(it['商品名']||'').trim() || '(名称未設定)') + '</div>'
-    +     (j.verdict? '<span class="stamp ' + j.verdict + '">' + j.mark + '<small>' + j.tier + '</small></span>' : '<span class="stamp none"></span>')
+    +     ((j? j.verdict : null)? '<span class="stamp ' + (j? j.verdict : null) + '">' + j.mark + '<small>' + j.tier + '</small></span>' : '<span class="stamp none"></span>')
     +   '</div>'
     +   '<div class="i-mid">'
     +     '<span class="tag st-' + (it['ステータス']||'') + '">' + esc2(it['ステータス']||'') + '</span>'
