@@ -169,6 +169,7 @@ nav button.on{color:var(--indigo);font-weight:700}
     <option value="buyOld">仕入日が古い順</option>
     <option value="stale">在庫日数が長い順</option>
     <option value="price">価格が高い順</option>
+    <option value="group">同じ商品でまとめる</option>
   </select>
 </div>
 
@@ -511,6 +512,7 @@ function comparator(){
     case 'buyOld': return (a,b)=> bd(a).localeCompare(bd(b));
     case 'stale': return (a,b)=> ((stockDays(b)??-1)-(stockDays(a)??-1));
     case 'price': return (a,b)=> basisPrice(b)-basisPrice(a);
+    case 'group': return (a,b)=> idTime(b)-idTime(a);
     default: return (a,b)=> idTime(b)-idTime(a);
   }
 }
@@ -520,6 +522,19 @@ function filtered(){
   if(statusFilter==='__noname__') arr = arr.filter(it => !String(it['商品名']||'').trim());
   else if(statusFilter) arr = arr.filter(it => it['ステータス']===statusFilter);
   const c = comparator();
+  if(sortMode === 'group'){
+    const key = function(x){ return String(x['商品名']||'(名称未設定)') + '|' + String(x['仕入額']||''); };
+    const groups = {};
+    const order = [];
+    arr.slice().sort(function(a,b){ return idTime(b)-idTime(a); }).forEach(function(x){
+      const k = key(x);
+      if(!groups[k]){ groups[k] = []; order.push(k); }
+      groups[k].push(x);
+    });
+    const out = [];
+    order.forEach(function(k){ groups[k].forEach(function(x){ out.push(x); }); });
+    return out;
+  }
   const done = arr.filter(i=>i['ステータス']==='取引完了').sort(c);
   const live = arr.filter(i=>i['ステータス']!=='取引完了').sort(c);
   return live.concat(done);
@@ -897,6 +912,12 @@ function resizeImage(file){
   });
 }
 async function uploadImage(file){
+  try{
+    const localUrl = URL.createObjectURL(file);
+    const pv = $('imgPrev');
+    pv.src = localUrl;
+    pv.classList.add('on');
+  }catch(pe){}
   if(!settings.url){ toast('先に設定でデータ接続をしてください'); return; }
   const msg = $('imgMsg');
   msg.style.display = '';
