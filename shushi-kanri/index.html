@@ -57,6 +57,12 @@ header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position
 
 /* ---- list ---- */
 #list{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+.swipe-wrap{position:relative;overflow:hidden;border-radius:14px;margin-bottom:10px}
+.swipe-actions{position:absolute;top:0;right:0;height:100%;display:flex;align-items:stretch}
+.swipe-actions button{border:none;color:#fff;font-size:13px;font-weight:600;padding:0 18px;cursor:pointer}
+.sw-dup{background:var(--indigo)}
+.sw-del{background:var(--bad)}
+.swipe-wrap .item{position:relative;margin-bottom:0;transition:transform .22s ease;background:var(--card);will-change:transform}
 .item{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;cursor:pointer}
 .i-top{display:flex;align-items:flex-start;gap:8px}
 .i-name{font-size:14px;font-weight:600;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -515,7 +521,7 @@ function render(){
   for(const it of arr){
     if(it['ステータス']!=='取引完了') stockSum += realCost(it);
     const pr = profitOf(it); if(pr!=null && it['ステータス']==='取引完了') profitSum += pr;
-    list.appendChild(card(it));
+    list.appendChild(wrapSwipe(it));
   }
   if(arr.length===0){
     list.innerHTML = '<div class="empty">' + (items.length===0 ? 'まだ商品がありません。<br>右下の＋から登録するか、設定からCSVを取り込めます。' : '検索に一致する商品がありません') + '</div>';
@@ -892,6 +898,94 @@ async function uploadImage(file){
   }catch(e){
     msg.textContent = '❌ アップロードできませんでした: ' + e.message;
   }
+}
+
+/* ============ スワイプ操作 ============ */
+let openSwipe = null;
+function closeSwipe(){ if(openSwipe){ openSwipe.style.transform = ''; openSwipe = null; } }
+function wrapSwipe(it){
+  const el = card(it);
+  const wrap = document.createElement('div');
+  wrap.className = 'swipe-wrap';
+  const acts = document.createElement('div');
+  acts.className = 'swipe-actions';
+  const bDup = document.createElement('button');
+  bDup.className = 'sw-dup'; bDup.textContent = '複製';
+  const bDel = document.createElement('button');
+  bDel.className = 'sw-del'; bDel.textContent = '削除';
+  acts.appendChild(bDup); acts.appendChild(bDel);
+  wrap.appendChild(acts); wrap.appendChild(el);
+  attachSwipe(wrap, el, it, bDup, bDel);
+  return wrap;
+}
+function attachSwipe(wrap, cardEl, it, bDup, bDel){
+  let x0 = 0, y0 = 0, dx = 0, moving = false, decided = false, base = 0;
+  const W = 140;
+  cardEl.addEventListener('touchstart', function(e){
+    if(openSwipe && openSwipe !== cardEl) closeSwipe();
+    base = (openSwipe === cardEl) ? -W : 0;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    dx = base; moving = true; decided = false;
+    cardEl.style.transition = 'none';
+  }, {passive:true});
+  cardEl.addEventListener('touchmove', function(e){
+    if(!moving) return;
+    const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+    if(!decided){
+      if(Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+      decided = true;
+      if(Math.abs(my) > Math.abs(mx)){ moving = false; cardEl.style.transition = ''; return; }
+    }
+    dx = Math.max(-W, Math.min(0, base + mx));
+    cardEl.style.transform = 'translateX(' + dx + 'px)';
+  }, {passive:true});
+  cardEl.addEventListener('touchend', function(){
+    if(!moving) return;
+    moving = false;
+    cardEl.style.transition = '';
+    if(dx < -W/2){ cardEl.style.transform = 'translateX(-' + W + 'px)'; openSwipe = cardEl; }
+    else { cardEl.style.transform = ''; if(openSwipe === cardEl) openSwipe = null; }
+  });
+  bDup.onclick = function(ev){ ev.stopPropagation(); closeSwipe(); swipeDup(it); };
+  bDel.onclick = function(ev){ ev.stopPropagation(); closeSwipe(); swipeDel(it); };
+}
+async function swipeDup(it){
+  const nStr = prompt('何個追加しますか？（今の1個に加える数）', '1');
+  if(nStr === null) return;
+  const n = Math.max(1, Math.min(20, parseInt(nStr, 10) || 0));
+  if(!n) return;
+  const copies = [];
+  for(let i=0; i<n; i++){
+    const c = Object.assign({}, it);
+    c['ID'] = '';
+    c['ステータス'] = '出品前';
+    c['販売価格'] = '';
+    c['出品日'] = '';
+    c['発送日'] = '';
+    c['取引日'] = '';
+    c['取引完了日'] = '';
+    c['手数料'] = '';
+    copies.push(c);
+  }
+  toast('複製中…');
+  try{
+    const r = await apiPost({action:'import', items: copies});
+    if(!r.ok) throw new Error(r.error);
+    toast(n + '個 複製しました');
+    await reload(false);
+  }catch(e){ toast('複製に失敗: ' + e.message); }
+}
+async function swipeDel(it){
+  const nm = String(it['商品名'] || '(名称未設定)').slice(0, 20);
+  if(!confirm(nm + ' を削除します。よろしいですか？')) return;
+  try{
+    const r = await apiPost({action:'delete', id: it['ID']});
+    if(!r.ok) throw new Error(r.error);
+    items = items.filter(function(x){ return String(x['ID']) !== String(it['ID']); });
+    LS.set('cacheItems', items);
+    toast('削除しました');
+    render();
+  }catch(e){ toast('削除に失敗: ' + e.message); }
 }
 
 /* ============ 分析 ============ */
