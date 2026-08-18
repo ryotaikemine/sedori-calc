@@ -474,9 +474,20 @@ async function reload(showToast){
   if(!settings.url){ $('syncInfo').textContent='未接続（設定へ）'; return; }
   $('syncInfo').textContent='読込中…';
   try{
-    const r = await apiGet({action:'list'});
+    const lastSync = LS.get('lastSync', '');
+    const q = {action:'list'};
+    if(lastSync && items.length) q.since = lastSync;
+    const r = await apiGet(q);
     if(!r.ok) throw new Error(r.error);
-    items = r.items;
+    if(r.diff){
+      const map = {};
+      items.forEach(function(x){ map[String(x['ID'])] = x; });
+      r.items.forEach(function(x){ map[String(x['ID'])] = x; });
+      items = Object.keys(map).map(function(k){ return map[k]; });
+    } else {
+      items = r.items;
+    }
+    if(r.now) LS.set('lastSync', r.now);
     LS.set('cacheItems', items);
     $('syncInfo').textContent = '同期 ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
     render();
@@ -546,10 +557,29 @@ function render(){
   const list = $('list');
   list.innerHTML = '';
   let stockSum = 0, profitSum = 0;
+  const PAGE = 60;
+  let drawn = 0;
+  const pending = [];
   for(const it of arr){
     if(it['ステータス']!=='取引完了') stockSum += realCost(it);
     const pr = profitOf(it); if(pr!=null && it['ステータス']==='取引完了') profitSum += pr;
-    list.appendChild(wrapSwipe(it));
+      if(drawn < PAGE){ list.appendChild(wrapSwipe(it)); drawn++; }
+    else { pending.push(it); }
+  }
+  if(pending.length){
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'btn';
+    moreBtn.style.margin = '4px 0 10px';
+    moreBtn.textContent = 'もっと見る（残り ' + pending.length + ' 件）';
+    moreBtn.onclick = function(){
+      const next = pending.splice(0, PAGE);
+      const frag = document.createDocumentFragment();
+      next.forEach(function(x){ frag.appendChild(wrapSwipe(x)); });
+      list.insertBefore(frag, moreBtn);
+      if(pending.length){ moreBtn.textContent = 'もっと見る（残り ' + pending.length + ' 件）'; }
+      else { moreBtn.remove(); }
+    };
+    list.appendChild(moreBtn);
   }
   if(arr.length===0){
     list.innerHTML = '<div class="empty">' + (items.length===0 ? 'まだ商品がありません。<br>右下の＋から登録するか、設定からCSVを取り込めます。' : '検索に一致する商品がありません') + '</div>';
