@@ -595,7 +595,8 @@ function card(it){
   const j = judge(it);
   const d = stockDays(it);
   const pr = profitOf(it);
-  const sold = it['ステータス']==='取引完了';
+  const st0 = it['ステータス'];
+  const sold = (st0==='取引完了' || st0==='入金待ち');
   let daysTag = '';
   if(d!=null){
     const cls = d>=90?'days3': d>=60?'days2':'days1';
@@ -605,7 +606,7 @@ function card(it){
   const imgUrl = String(it['画像']||'').trim();
   const esc2 = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const jpDate = ds => { if(!ds) return ''; const p = ds.split('-'); return p.length===3? (p[0].slice(2) + '/' + Number(p[1]) + '/' + Number(p[2])) : ds; };
-  const soldDate = normDate(it['取引完了日']) || normDate(it['取引日']);
+  const soldDate = normDate(it['取引完了日']) || normDate(it['取引日']) || normDate(it['取引日']);
   const sd = sold ? (function(){ const f = normDate(it['出品日']) || normDate(it['仕入日']); if(!f || !soldDate) return null; const n = Math.round((new Date(soldDate) - new Date(f))/86400000); return n>=0? n : null; })() : null;
   const price = num(it['販売価格']);
   const rate = (sold && price>0)? (Math.round(pr/price*1000)/10) : null;
