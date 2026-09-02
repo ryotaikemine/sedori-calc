@@ -484,6 +484,11 @@ async function reload(showToast){
       items.forEach(function(x){ map[String(x['ID'])] = x; });
       r.items.forEach(function(x){ map[String(x['ID'])] = x; });
       items = Object.keys(map).map(function(k){ return map[k]; });
+      if(r.ids && r.ids.length){
+        const alive = {};
+        r.ids.forEach(function(id){ alive[String(id)] = 1; });
+        items = items.filter(function(x){ return alive[String(x['ID'])]; });
+      }
     } else {
       items = r.items;
     }
