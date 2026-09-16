@@ -323,11 +323,26 @@ nav button.on{color:var(--indigo);font-weight:700}
   <div class="pagehead">設定</div>
   <div class="formwrap">
     <div class="fcard">
-      <h3>データ接続</h3>
-      <div class="frow"><label>ウェブアプリURL（Apps Scriptで発行したもの）</label><input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec"></div>
-      <div class="frow"><label>合言葉</label><input id="sKey" placeholder="kobanu-2026"></div>
-      <button class="btn primary" id="btnConnTest">接続テスト＆保存</button>
+      <h3>ログイン（クラウド同期）</h3>
+      <div id="loginBox">
+        <div class="frow"><label>メールアドレス</label><input id="sEmail" type="email" autocomplete="username" placeholder="you@example.com"></div>
+        <div class="frow"><label>パスワード</label><input id="sPass" type="password" autocomplete="current-password"></div>
+        <button class="btn primary" id="btnLogin">ログインする</button>
+      </div>
+      <div id="logoutBox" style="display:none">
+        <div class="calcbox" style="margin-bottom:8px"><div class="cr"><span>ログイン中</span><b id="loginUser"></b></div><div class="cr"><span>同期状態</span><b id="syncState">—</b></div></div>
+        <button class="btn ghost" id="btnLogout" style="margin-top:0">ログアウト</button>
+      </div>
       <div class="note" id="connMsg"></div>
+      <div class="frow" id="cfgBox" style="display:none;margin-top:10px"><label>Firebase設定（貼り付け）</label><textarea id="sCfg" rows="4" placeholder='{"apiKey":"…","authDomain":"…","projectId":"…","storageBucket":"…","appId":"…"}'></textarea>
+        <button class="btn ghost" id="btnCfgSave">設定を保存して再読み込み</button></div>
+    </div>
+    <div class="fcard" id="migCard">
+      <h3>旧データを取り込む（Apps Script版から1回だけ）</h3>
+      <div class="frow"><label>旧ウェブアプリURL</label><input id="mUrl" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="frow"><label>合言葉</label><input id="mKey" placeholder="kobanu-2026"></div>
+      <button class="btn ghost" id="btnMigrate" style="margin-top:0">旧データを読み込んでこちらに移す</button>
+      <div class="note" id="migMsg">※ 同じIDの商品は上書きされるので、2回押しても重複しません。写真は旧リンクのまま表示されます。</div>
     </div>
     <div class="fcard">
       <h3>手数料率（％）</h3>
@@ -364,14 +379,50 @@ nav button.on{color:var(--indigo);font-weight:700}
 
 <div class="msg" id="msg"></div>
 
-<script>
-"use strict";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
+
+/* ============ Firebase 設定 ============
+   Firebaseコンソール「プロジェクトの設定 → マイアプリ → SDKの設定」の値。
+   （公開してよい情報です。データの保護はFirestore/Storageのルール＋ログインで行います） */
+const FB_CONFIG = {
+  apiKey: "AIzaSyB7m4_yMMNvCXQ-PM6YCzFxnrCqKeHseOA",
+  authDomain: "shushi-kanri-92c83.firebaseapp.com",
+  projectId: "shushi-kanri-92c83",
+  storageBucket: "shushi-kanri-92c83.firebasestorage.app",
+  messagingSenderId: "335638275711",
+  appId: "1:335638275711:web:4fffd5e6d5a0f52598c14a"
+};
+
 /* ============ 状態と設定 ============ */
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v===null? d : JSON.parse(v);}catch(e){return d} },
   set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
 };
 let settings = LS.get('settings', {url:'', key:'', fees:{'ヤフオク':10,'メルカリ':10,'ラクマ':10,'その他':10}});
+if(!settings.fees) settings.fees = {'ヤフオク':10,'メルカリ':10,'ラクマ':10,'その他':10};
+
+const cfg = (FB_CONFIG.apiKey ? FB_CONFIG : LS.get('fbConfig', null));
+let fbApp = null, auth = null, db = null, storage = null, user = null;
+let unsubItems = null;
+let pendingWrites = 0;        // サーバー未送信の商品数
+if(cfg && cfg.apiKey){
+  fbApp = initializeApp(cfg);
+  auth = getAuth(fbApp);
+  db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  storage = getStorage(fbApp);
+}
+const COL = 'items';
+function newId(){ return 'ITEM-' + Date.now() + '-' + Math.random().toString(36).slice(2,6); }
+function nowIso(){ return new Date().toISOString(); }
+function cleanItem(it){ // Firestoreに入れる形（undefined禁止）
+  const o = {};
+  FIELDS.forEach(k=>{ const v = it[k]; o[k] = (v===undefined || v===null)? '' : v; });
+  return o;
+}
 let savedSearches = LS.get('savedSearches', []);
 let items = LS.get('cacheItems', []);
 let statusFilter = LS.get('statusFilter', '');
@@ -444,65 +495,176 @@ function stockDays(it){
   return daysBetween(d, today());
 }
 
-/* ============ API ============ */
-async function apiGet(params){
-  const u = new URL(settings.url);
-  u.searchParams.set('key', settings.key);
-  for(const k in params) u.searchParams.set(k, params[k]);
-  const res = await fetch(u.toString());
-  return res.json();
+/* ============ クラウド同期（Firestore） ============ */
+function setSyncInfo(){
+  const el = $('syncInfo');
+  if(!db){ el.textContent = '未設定（設定へ）'; return; }
+  if(!user){ el.textContent = '未ログイン（設定へ）'; return; }
+  const up = uploadQueueSize;
+  const parts = [];
+  if(!navigator.onLine) parts.push('オフライン');
+  if(pendingWrites > 0) parts.push('未送信 ' + pendingWrites + '件');
+  if(up > 0) parts.push('写真送信中 ' + up + '枚');
+  el.textContent = parts.length ? parts.join('・') : '同期済み';
+  const ss = $('syncState'); if(ss) ss.textContent = el.textContent;
 }
-async function apiPost(body){
-  body.key = settings.key;
-  let lastErr = null;
-  for(let attempt = 0; attempt < 3; attempt++){
-    try{
-      const res = await fetch(settings.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
-      const txt = await res.text();
-      if(txt.trim().charAt(0) === '{') return JSON.parse(txt);
-      lastErr = new Error('busy');
-    }catch(e){
-      lastErr = e;
-    }
-    if(attempt < 2){
-      await new Promise(function(rs){ setTimeout(rs, 1200 * (attempt + 1)); });
-    }
-  }
-  throw (lastErr || new Error('通信できませんでした'));
+function startSync(){
+  if(unsubItems){ unsubItems(); unsubItems = null; }
+  if(!db || !user) return;
+  unsubItems = onSnapshot(collection(db, COL), { includeMetadataChanges: true }, snap => {
+    items = snap.docs.map(d => d.data());
+    pendingWrites = snap.docs.filter(d => d.metadata.hasPendingWrites).length;
+    LS.set('cacheItems', items);
+    setSyncInfo();
+    render();
+  }, err => {
+    console.error(err);
+    $('syncInfo').textContent = '同期エラー';
+    toast('同期エラー: ' + err.message);
+  });
 }
 async function reload(showToast){
-  if(!settings.url){ $('syncInfo').textContent='未接続（設定へ）'; return; }
-  $('syncInfo').textContent='読込中…';
+  setSyncInfo();
+  if(!db){ if(showToast) toast('先に設定でFirebaseの設定をしてください'); return; }
+  if(!user){ if(showToast) toast('先に設定でログインしてください'); return; }
+  processUploads();
+  render();
+  if(showToast) toast(pendingWrites>0 ? '未送信 ' + pendingWrites + '件を送信中です' : '最新の状態です');
+}
+function requireLogin(){
+  if(!db){ toast('先に設定でFirebaseの設定をしてください'); switchView('viewSettings'); return false; }
+  if(!user){ toast('先に設定でログインしてください'); loadSettingsUI(); switchView('viewSettings'); return false; }
+  return true;
+}
+function upsertLocal(it){
+  const idx = items.findIndex(x=>String(x['ID'])===String(it['ID']));
+  if(idx>=0) items[idx]=it; else items.unshift(it);
+  LS.set('cacheItems', items);
+}
+function putItem(it){ // 即時ローカル反映＋裏で送信（待たない）
+  it['更新日時'] = nowIso();
+  if(!it['ID']) it['ID'] = newId();
+  const data = cleanItem(it);
+  upsertLocal(data);
+  setDoc(doc(db, COL, data['ID']), data).catch(e=>{ console.error(e); toast('送信に失敗しました（後で再送します）: ' + e.message); });
+  return data;
+}
+function putItems(list){ // 複数まとめて（1回の送信）
+  const out = [];
+  let batch = writeBatch(db), n = 0;
+  const batches = [];
+  list.forEach(it=>{
+    it['更新日時'] = nowIso();
+    if(!it['ID']) it['ID'] = newId();
+    const data = cleanItem(it);
+    upsertLocal(data);
+    batch.set(doc(db, COL, data['ID']), data);
+    out.push(data);
+    if(++n >= 400){ batches.push(batch); batch = writeBatch(db); n = 0; }
+  });
+  if(n) batches.push(batch);
+  batches.forEach(b=> b.commit().catch(e=>{ console.error(e); toast('送信に失敗しました: ' + e.message); }));
+  return out;
+}
+function removeItem(it){
+  const id = String(it['ID']);
+  items = items.filter(x=>String(x['ID'])!==id);
+  LS.set('cacheItems', items);
+  dropUpload(id);
+  deleteDoc(doc(db, COL, id)).catch(e=>{ console.error(e); toast('削除の送信に失敗: ' + e.message); });
+  const u = String(it['画像']||'');
+  if(u.indexOf('firebasestorage') >= 0){ try{ deleteObject(sRef(storage, u)).catch(()=>{}); }catch(e){} }
+}
+
+/* ============ 写真の送信キュー（スマホ内に保存→裏で送信・再送） ============ */
+const IDB_NAME = 'shushi-uploads', IDB_STORE = 'uploads';
+function idbOpen(){
+  return new Promise((rs, rj)=>{
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore(IDB_STORE, { keyPath: 'id' });
+    r.onsuccess = ()=> rs(r.result);
+    r.onerror = ()=> rj(r.error);
+  });
+}
+async function idbAll(){ const d = await idbOpen(); return new Promise((rs,rj)=>{ const q = d.transaction(IDB_STORE).objectStore(IDB_STORE).getAll(); q.onsuccess=()=>rs(q.result||[]); q.onerror=()=>rj(q.error); }); }
+async function idbPut(rec){ const d = await idbOpen(); return new Promise((rs,rj)=>{ const t = d.transaction(IDB_STORE,'readwrite'); t.objectStore(IDB_STORE).put(rec); t.oncomplete=()=>rs(); t.onerror=()=>rj(t.error); }); }
+async function idbDel(id){ const d = await idbOpen(); return new Promise((rs,rj)=>{ const t = d.transaction(IDB_STORE,'readwrite'); t.objectStore(IDB_STORE).delete(id); t.oncomplete=()=>rs(); t.onerror=()=>rj(t.error); }); }
+
+const localImg = {};          // ID → 端末内プレビューURL（送信完了まで）
+let uploadQueueSize = 0;
+let uploading = false;
+async function enqueueUpload(id, blob){
+  try{ localImg[id] = URL.createObjectURL(blob); }catch(e){}
+  try{ await idbPut({ id: String(id), blob: blob, ts: Date.now() }); }catch(e){ console.error(e); toast('写真の一時保存に失敗: ' + e.message); }
+  uploadQueueSize++; setSyncInfo();
+  processUploads();
+}
+async function dropUpload(id){
+  const had = !!localImg[id];
+  if(had){ try{ URL.revokeObjectURL(localImg[id]); }catch(e){} delete localImg[id]; }
+  try{ await idbDel(String(id)); }catch(e){}
+  if(had){ uploadQueueSize = Math.max(0, uploadQueueSize-1); setSyncInfo(); }
+}
+async function refreshQueueSize(){
   try{
-    const lastSync = LS.get('lastSync', '');
-    const q = {action:'list'};
-    if(lastSync && items.length) q.since = lastSync;
-    const r = await apiGet(q);
-    if(!r.ok) throw new Error(r.error);
-    if(r.diff){
-      const map = {};
-      items.forEach(function(x){ map[String(x['ID'])] = x; });
-      r.items.forEach(function(x){ map[String(x['ID'])] = x; });
-      items = Object.keys(map).map(function(k){ return map[k]; });
-      if(r.ids && r.ids.length){
-        const alive = {};
-        r.ids.forEach(function(id){ alive[String(id)] = 1; });
-        items = items.filter(function(x){ return alive[String(x['ID'])]; });
+    const all = await idbAll();
+    uploadQueueSize = all.length;
+    all.forEach(r=>{ if(!localImg[r.id]){ try{ localImg[r.id] = URL.createObjectURL(r.blob); }catch(e){} } });
+  }catch(e){ uploadQueueSize = 0; }
+  setSyncInfo();
+}
+async function processUploads(){
+  if(uploading || !db || !user || !navigator.onLine) return;
+  uploading = true;
+  let stalled = false;
+  try{
+    let all = await idbAll();
+    all.sort((a,b)=> a.ts - b.ts);
+    for(const rec of all){
+      if(!navigator.onLine) break;
+      const id = String(rec.id);
+      let ok = false;
+      for(let attempt=0; attempt<3 && !ok; attempt++){
+        try{
+          const r = sRef(storage, 'images/' + id + '.jpg');
+          await uploadBytes(r, rec.blob, { contentType: 'image/jpeg' });
+          const url = await getDownloadURL(r);
+          const local = items.find(x=>String(x['ID'])===id);
+          if(local){
+            local['画像'] = url; local['更新日時'] = nowIso();
+            await updateDoc(doc(db, COL, id), { '画像': url, '更新日時': local['更新日時'] }).catch(async e=>{
+              if(String(e.code||'').indexOf('not-found')>=0){ try{ await deleteObject(r); }catch(_){ } }
+              else throw e;
+            });
+          } else {
+            // 商品が既に削除されている → 画像も消す
+            try{ await deleteObject(r); }catch(_){ }
+          }
+          ok = true;
+        }catch(e){
+          console.error('upload fail', id, e);
+          await new Promise(rs=> setTimeout(rs, 1500 * (attempt+1)));
+        }
       }
-    } else {
-      items = r.items;
+      if(ok){
+        await idbDel(id);
+        uploadQueueSize = Math.max(0, uploadQueueSize-1);
+        if(localImg[id]){ try{ URL.revokeObjectURL(localImg[id]); }catch(e){} delete localImg[id]; }
+        setSyncInfo();
+        render();
+      } else {
+        stalled = true; break; // 通信不良っぽいので次回に回す
+      }
     }
-    if(r.now) LS.set('lastSync', r.now);
-    LS.set('cacheItems', items);
-    $('syncInfo').textContent = '同期 ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-    render();
-    if(showToast) toast('最新データを読み込みました');
-  }catch(e){
-    $('syncInfo').textContent='オフライン（前回データ表示中）';
-    if(showToast) toast('読み込みに失敗: ' + e.message);
-    render();
+  } finally {
+    uploading = false;
+    await refreshQueueSize();
+    if(!stalled && uploadQueueSize > 0) setTimeout(processUploads, 300); // 処理中に増えた分
   }
 }
+window.addEventListener('online', ()=>{ setSyncInfo(); processUploads(); });
+window.addEventListener('offline', setSyncInfo);
+setInterval(()=>{ if(uploadQueueSize>0) processUploads(); }, 30000);
 
 /* ============ 検索 ============ */
 function norm(s){
@@ -608,7 +770,7 @@ function card(it){
     daysTag = `<span class="tag ${cls}">在庫${d}日</span>`;
   }
   const sellShow = sold ? ('<span style="color:var(--sub);font-weight:400;font-size:12px">売却 </span>' + yen(num(it['販売価格']))) : (num(it['開始価格'])? ('<span style="color:var(--sub);font-weight:400;font-size:12px">予定 </span>' + yen(num(it['開始価格'])) + '〜') : (num(it['予想売価'])? ('<span style="color:var(--sub);font-weight:400;font-size:12px">予想 </span>' + yen(num(it['予想売価']))) : ''));
-  const imgUrl = String(it['画像']||'').trim();
+  const imgUrl = String(it['画像']||'').trim() || localImg[String(it['ID'])] || '';
   const esc2 = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const jpDate = ds => { if(!ds) return ''; const p = ds.split('-'); return p.length===3? (p[0].slice(2) + '/' + Number(p[1]) + '/' + Number(p[2])) : ds; };
   const soldDate = normDate(it['取引完了日']) || normDate(it['取引日']) || normDate(it['取引日']);
@@ -721,7 +883,9 @@ function openForm(id){
   $('bulkCard').style.display = it? 'none' : '';
   const get = k => it? (it[k]??'') : '';
   ['商品名','仕入れ元','備考','画像'].forEach(k=> $('f'+k).value = get(k));
+  formPendingBlob = null;
   updateImgPrev();
+  if(it && !String(it['画像']||'').trim() && localImg[String(it['ID'])]){ $('imgPrev').src = localImg[String(it['ID'])]; $('imgPrev').classList.add('on'); }
   $('imgFile').value = '';
   $('imgMsg').style.display = 'none';
   ['ステータス','プラットフォーム','種類'].forEach(k=> $('f'+k).value = get(k) || $('f'+k).options[0].value);
@@ -765,37 +929,30 @@ function updateSrcList(){
   items.forEach(i=>{ const s=(i['仕入れ元']||'').trim(); if(s) seen.add(s); });
   dl.innerHTML = [...seen].slice(0,30).map(s=>`<option value="${s.replace(/"/g,'&quot;')}">`).join('');
 }
-async function saveItem(){
+function saveItem(){
+  if(!requireLogin()) return;
   const it = formItem();
-  if(!settings.url){ toast('先に設定でデータ接続をしてください'); switchView('viewSettings'); return; }
-  $('btnSave').disabled = true;
-  $('btnSave').innerHTML = '<span class="spin"></span>保存中…';
-  try{
-    const r = await apiPost(editingId? {action:'update', item:it} : {action:'add', item:it});
-    if(!r.ok) throw new Error(r.error);
-    it['ID'] = r.id || it['ID'];
-    const idx = items.findIndex(x=>String(x['ID'])===String(it['ID']));
-    if(idx>=0) items[idx]=it; else items.unshift(it);
-    LS.set('cacheItems', items);
-    toast('保存しました');
-    switchView('viewList');
-    render();
-  }catch(e){ toast('保存に失敗: ' + e.message); }
-  $('btnSave').disabled = false;
-  $('btnSave').textContent = '保存する';
+  if(editingId){
+    const old = items.find(x=>String(x['ID'])===String(editingId));
+    if(old && old['更新日時']) it['更新日時'] = old['更新日時'];
+  }
+  const blob = formPendingBlob;
+  if(blob) it['画像'] = ''; // 送信完了後にURLが入る
+  const saved = putItem(it);
+  if(blob){ enqueueUpload(saved['ID'], blob); formPendingBlob = null; }
+  toast('保存しました');
+  switchView('viewList');
+  render();
 }
-async function deleteItem(){
+function deleteItem(){
   if(!editingId) return;
+  if(!requireLogin()) return;
   if(!confirm('この商品を削除します。よろしいですか？')) return;
-  try{
-    const r = await apiPost({action:'delete', id: editingId});
-    if(!r.ok) throw new Error(r.error);
-    items = items.filter(x=>String(x['ID'])!==String(editingId));
-    LS.set('cacheItems', items);
-    toast('削除しました');
-    switchView('viewList');
-    render();
-  }catch(e){ toast('削除に失敗: ' + e.message); }
+  const it = items.find(x=>String(x['ID'])===String(editingId)) || {'ID': editingId};
+  removeItem(it);
+  toast('削除しました');
+  switchView('viewList');
+  render();
 }
 
 /* ============ CSV ============ */
@@ -865,27 +1022,17 @@ function handleCSV(file){
   };
   reader.readAsText(file, 'utf-8');
 }
-async function runImport(){
+function runImport(){
   if(!csvRows || !csvRows.length) return;
-  if(!settings.url){ toast('先にデータ接続を設定してください'); return; }
+  if(!requireLogin()) return;
   const btn = $('btnImport');
-  btn.disabled = true;
-  let done = 0;
-  try{
-    for(let i=0;i<csvRows.length;i+=40){
-      const chunk = csvRows.slice(i,i+40);
-      btn.innerHTML = `<span class="spin"></span>取り込み中… ${done}/${csvRows.length}`;
-      const r = await apiPost({action:'import', items: chunk});
-      if(!r.ok) throw new Error(r.error);
-      done += chunk.length;
-    }
-    toast(`${done}件を取り込みました`);
-    csvRows = null;
-    $('csvPreview').innerHTML=''; $('csvFile').value=''; btn.style.display='none';
-    await reload(false);
-    switchView('viewList');
-  }catch(e){ toast(`エラー（${done}件までは取込済）: ` + e.message); }
-  btn.disabled = false; btn.textContent = 'この内容で取り込む';
+  const list = csvRows.map(r=>{ const c = Object.assign({}, r); c['ID'] = ''; return c; });
+  putItems(list);
+  toast(list.length + '件を取り込みました');
+  csvRows = null;
+  $('csvPreview').innerHTML=''; $('csvFile').value=''; btn.style.display='none';
+  switchView('viewList');
+  render();
 }
 function exportCSV(){
   const head = FIELDS.filter(f=>f!=='更新日時');
@@ -900,22 +1047,61 @@ function exportCSV(){
 
 /* ============ 設定 ============ */
 function loadSettingsUI(){
-  $('sUrl').value = settings.url; $('sKey').value = settings.key;
   for(const k of ['ヤフオク','メルカリ','ラクマ','その他']) $('fee'+k).value = settings.fees[k];
+  $('mUrl').value = settings.url || ''; $('mKey').value = settings.key || '';
+  $('cfgBox').style.display = (FB_CONFIG.apiKey || (cfg && cfg.apiKey)) ? 'none' : '';
+  if(!db){ $('connMsg').textContent = '⚠️ Firebaseの設定がまだ入っていません'; }
+  $('loginBox').style.display = user ? 'none' : '';
+  $('logoutBox').style.display = user ? '' : 'none';
+  if(user){ $('loginUser').textContent = user.email || ''; }
+  setSyncInfo();
 }
-async function connTest(){
-  const url = $('sUrl').value.trim(), key = $('sKey').value.trim();
-  if(!url || !key){ $('connMsg').textContent='URLと合言葉を入れてください'; return; }
-  $('connMsg').innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 接続中…';
+async function doLogin(){
+  if(!auth){ $('connMsg').textContent = '⚠️ Firebaseの設定がまだ入っていません'; return; }
+  const em = $('sEmail').value.trim(), pw = $('sPass').value;
+  if(!em || !pw){ $('connMsg').textContent = 'メールアドレスとパスワードを入れてください'; return; }
+  $('connMsg').innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> ログイン中…';
   try{
-    const u = new URL(url); u.searchParams.set('action','ping'); u.searchParams.set('key',key);
+    await signInWithEmailAndPassword(auth, em, pw);
+    $('connMsg').textContent = '✅ ログインしました';
+    $('sPass').value = '';
+    toast('ログインしました');
+  }catch(e){
+    const m = String(e.code||'');
+    $('connMsg').textContent = '❌ ログインできません: ' + (m.indexOf('invalid-credential')>=0 || m.indexOf('wrong-password')>=0 || m.indexOf('user-not-found')>=0 ? 'メールアドレスかパスワードが違います' : e.message);
+  }
+}
+async function doLogout(){
+  if(!auth) return;
+  if(!confirm('ログアウトすると、この端末ではデータが見られなくなります（データ自体は消えません）。よろしいですか？')) return;
+  try{ await signOut(auth); toast('ログアウトしました'); }catch(e){ toast('ログアウトに失敗: ' + e.message); }
+}
+function saveCfg(){
+  try{
+    const o = JSON.parse($('sCfg').value.trim());
+    if(!o.apiKey || !o.projectId) throw new Error('apiKey / projectId がありません');
+    LS.set('fbConfig', o);
+    location.reload();
+  }catch(e){ $('connMsg').textContent = '❌ 設定の形式が正しくありません: ' + e.message; }
+}
+async function migrateOld(){
+  if(!requireLogin()) return;
+  const url = $('mUrl').value.trim(), key = $('mKey').value.trim();
+  if(!url || !key){ $('migMsg').textContent = '旧URLと合言葉を入れてください'; return; }
+  const btn = $('btnMigrate'); btn.disabled = true;
+  $('migMsg').innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 旧データを読み込み中…';
+  try{
+    const u = new URL(url); u.searchParams.set('action','list'); u.searchParams.set('key',key);
     const r = await (await fetch(u.toString())).json();
-    if(!r.ok) throw new Error(r.error);
+    if(!r.ok) throw new Error(r.error || '旧アプリから読み込めません');
+    const list = (r.items||[]).map(x=>{ const c = Object.assign({}, x); if(!c['ID']) c['ID'] = ''; return c; });
+    if(!list.length){ $('migMsg').textContent = '旧データは0件でした'; btn.disabled = false; return; }
     settings.url = url; settings.key = key; LS.set('settings', settings);
-    $('connMsg').textContent = '✅ ' + r.message;
-    toast('接続できました');
-    reload(false);
-  }catch(e){ $('connMsg').textContent = '❌ 接続できません: ' + e.message; }
+    putItems(list);
+    $('migMsg').textContent = '✅ ' + list.length + '件を移しました（送信は裏で続きます）';
+    toast(list.length + '件を移しました');
+  }catch(e){ $('migMsg').textContent = '❌ 失敗: ' + e.message; }
+  btn.disabled = false;
 }
 
 /* ============ 画像 ============ */
@@ -930,7 +1116,7 @@ function resizeImage(file){
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = ()=>{
-      const MAX = 800;
+      const MAX = 1200;
       let w = img.width, h = img.height;
       if(w > MAX || h > MAX){
         const r = Math.min(MAX/w, MAX/h);
@@ -940,33 +1126,28 @@ function resizeImage(file){
       cv.width = w; cv.height = h;
       cv.getContext('2d').drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      const dataUrl = cv.toDataURL('image/jpeg', 0.82);
-      resolve(dataUrl.split(',')[1]);
+      cv.toBlob(b => b ? resolve(b) : reject(new Error('画像の変換に失敗しました')), 'image/jpeg', 0.85);
     };
     img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('画像を読めませんでした')); };
     img.src = url;
   });
 }
+let formPendingBlob = null; // フォームで選んだ写真（保存時に送信キューへ）
 async function uploadImage(file){
-  try{
-    const localUrl = URL.createObjectURL(file);
-    const pv = $('imgPrev');
-    pv.src = localUrl;
-    pv.classList.add('on');
-  }catch(pe){}
-  if(!settings.url){ toast('先に設定でデータ接続をしてください'); return; }
   const msg = $('imgMsg');
   msg.style.display = '';
-  msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真をアップロード中…';
+  msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真を準備中…';
   try{
-    const b64 = await resizeImage(file);
-    const r = await apiPost({action:'uploadImage', data: b64, mime: 'image/jpeg'});
-    if(!r.ok) throw new Error(r.error);
-    $('f画像').value = r.url;
-    updateImgPrev();
-    msg.textContent = '✅ アップロードできました（保存ボタンで商品に紐づきます）';
+    const blob = await resizeImage(file);
+    formPendingBlob = blob;
+    $('f画像').value = '';
+    const pv = $('imgPrev');
+    pv.src = URL.createObjectURL(blob);
+    pv.classList.add('on');
+    msg.textContent = '✅ 写真を選びました（保存すると裏で送信されます）';
   }catch(e){
-    msg.textContent = '❌ アップロードできませんでした: ' + e.message;
+    formPendingBlob = null;
+    msg.textContent = '❌ 写真を読めませんでした: ' + e.message;
   }
 }
 
@@ -1037,25 +1218,18 @@ async function swipeDup(it){
     c['手数料'] = '';
     copies.push(c);
   }
-  toast('複製中…');
-  try{
-    const r = await apiPost({action:'import', items: copies});
-    if(!r.ok) throw new Error(r.error);
-    toast(n + '個 複製しました');
-    await reload(false);
-  }catch(e){ toast('複製に失敗: ' + e.message); }
+  if(!requireLogin()) return;
+  putItems(copies);
+  toast(n + '個 複製しました');
+  render();
 }
-async function swipeDel(it){
+function swipeDel(it){
+  if(!requireLogin()) return;
   const nm = String(it['商品名'] || '(名称未設定)').slice(0, 20);
   if(!confirm(nm + ' を削除します。よろしいですか？')) return;
-  try{
-    const r = await apiPost({action:'delete', id: it['ID']});
-    if(!r.ok) throw new Error(r.error);
-    items = items.filter(function(x){ return String(x['ID']) !== String(it['ID']); });
-    LS.set('cacheItems', items);
-    toast('削除しました');
-    render();
-  }catch(e){ toast('削除に失敗: ' + e.message); }
+  removeItem(it);
+  toast('削除しました');
+  render();
 }
 
 /* ============ 分析 ============ */
@@ -1172,41 +1346,24 @@ $('bulkFiles').addEventListener('change', e=>{
 });
 async function runBulk(){
   if(!bulkList || !bulkList.length) return;
-  if(!settings.url){ toast('先に設定でデータ接続をしてください'); switchView('viewSettings'); return; }
+  if(!requireLogin()) return;
   const btn = $('btnBulk'); btn.disabled = true;
   const msg = $('bulkMsg'); msg.style.display = '';
-  const urls = new Array(bulkList.length).fill('');
-  let doneN = 0;
-  async function upOne(i){
-    try{
-      const b64 = await resizeImage(bulkList[i]);
-      const r = await apiPost({action:'uploadImage', data:b64, mime:'image/jpeg'});
-      if(r.ok) urls[i] = r.url;
-    }catch(err){}
-    doneN++;
-    msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真アップロード中… ' + doneN + ' / ' + bulkList.length;
-  }
-  for(let i=0; i<bulkList.length; i+=3){
-    const batch = [];
-    for(let j=i; j<Math.min(i+3, bulkList.length); j++) batch.push(upOne(j));
-    await Promise.all(batch);
-  }
-  msg.textContent = '商品を登録中…';
   const src = $('bulkSrc').value.trim();
-  const newItems = urls.map(u=>({ '商品名':'', 'ステータス':'出品前', 'プラットフォーム':'ヤフオク', '種類':'衣類', '仕入れ元': src, '仕入日': today(), '画像': u }));
-  try{
-    const r = await apiPost({action:'import', items:newItems});
-    if(!r.ok) throw new Error(r.error);
-    msg.style.display = 'none';
-    $('bulkFiles').value = ''; bulkList = null;
-    btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'まとめて登録する';
-    toast(newItems.length + '商品を登録しました。名前と仕入額は後からゆっくりどうぞ');
-    await reload(false);
-    switchView('viewList');
-  }catch(err){
-    msg.textContent = '❌ 登録に失敗しました: ' + err.message;
-    btn.disabled = false;
+  const blobs = [];
+  for(let i=0; i<bulkList.length; i++){
+    msg.innerHTML = '<span class="spin" style="border-color:var(--indigo);border-top-color:transparent"></span> 写真を準備中… ' + (i+1) + ' / ' + bulkList.length;
+    try{ blobs.push(await resizeImage(bulkList[i])); }catch(e){ blobs.push(null); }
   }
+  const newItems = blobs.map(()=>({ 'ID': newId(), '商品名':'', 'ステータス':'出品前', 'プラットフォーム':'ヤフオク', '種類':'衣類', '仕入れ元': src, '仕入日': today(), '画像': '' }));
+  const saved = putItems(newItems);           // 商品はこの場で即登録（1回送信）
+  for(let i=0; i<saved.length; i++){ if(blobs[i]) await enqueueUpload(saved[i]['ID'], blobs[i]); } // 写真は裏で順次送信
+  msg.style.display = 'none';
+  $('bulkFiles').value = ''; bulkList = null;
+  btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'まとめて登録する';
+  toast(saved.length + '商品を登録しました。写真は裏で送信します');
+  switchView('viewList');
+  render();
 }
 $('btnBulk').onclick = runBulk;
 
@@ -1245,35 +1402,46 @@ async function dupItem(){
     c['手数料'] = '';
     copies.push(c);
   }
-  const btn = $('btnDup');
-  btn.disabled = true;
-  btn.textContent = '複製中…';
-  try{
-    const r = await apiPost({action:'import', items: copies});
-    if(!r.ok) throw new Error(r.error);
-    toast(n + '個に複製しました');
-    await reload(false);
-    switchView('viewList');
-  }catch(e){ toast('複製に失敗: ' + e.message); }
-  btn.disabled = false;
-  btn.textContent = 'この商品を複製する（同じ物を複数仕入れた時）';
+  if(!requireLogin()) return;
+  putItems(copies);
+  toast(n + '個に複製しました');
+  switchView('viewList');
+  render();
 }
 $('btnDup').onclick = dupItem;
 $('btnDelete').onclick = deleteItem;
-$('btnConnTest').onclick = connTest;
+$('btnLogin').onclick = doLogin;
+$('sPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+$('btnLogout').onclick = doLogout;
+$('btnCfgSave').onclick = saveCfg;
+$('btnMigrate').onclick = migrateOld;
 $('btnFeeSave').onclick = ()=>{
   for(const k of ['ヤフオク','メルカリ','ラクマ','その他']) settings.fees[k] = parseFloat($('fee'+k).value)||10;
   LS.set('settings', settings); toast('手数料率を保存しました'); render();
 };
 $('imgFile').addEventListener('change', e=>{ if(e.target.files[0]) uploadImage(e.target.files[0]); });
-$('f画像').addEventListener('input', updateImgPrev);
+$('f画像').addEventListener('input', ()=>{ if($('f画像').value.trim()){ formPendingBlob = null; $('imgMsg').style.display='none'; } updateImgPrev(); });
 $('csvFile').addEventListener('change', e=>{ if(e.target.files[0]) handleCSV(e.target.files[0]); });
 $('btnImport').onclick = runImport;
 $('btnExport').onclick = exportCSV;
 document.querySelectorAll('#viewForm input, #viewForm select').forEach(el=> el.addEventListener('input', liveCalc));
 
 render();
-reload(false);
+refreshQueueSize().then(render);
+if(auth){
+  onAuthStateChanged(auth, u => {
+    user = u;
+    if(u){ startSync(); processUploads(); }
+    else { if(unsubItems){ unsubItems(); unsubItems = null; } loadSettingsUI(); switchView('viewSettings'); }
+    setSyncInfo();
+    if($('viewSettings').classList.contains('on')) loadSettingsUI();
+  });
+} else {
+  setSyncInfo();
+  loadSettingsUI();
+  switchView('viewSettings');
+}
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
 </html>
