@@ -48,6 +48,9 @@ header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position
 .chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
 .chip.save{border-style:dashed;color:var(--indigo)}
 .chip .x{margin-left:6px;opacity:.6}
+.calcMode,.calcTax{background:#fff;color:var(--sub)}
+.calcMode.on,.calcTax.on{background:var(--indigo);color:#fff}
+.calcQuick{padding:4px 10px;font-size:12px}
 
 /* ---- summary bar ---- */
 .summary{display:flex;gap:8px;padding:6px 14px 2px}
@@ -185,8 +188,8 @@ nav button.on{color:var(--indigo);font-weight:700}
 </div>
 <div class="summary" style="padding-top:4px">
   <div class="sum-card"><div class="v num" id="sumStock">¥0</div><div class="k">在庫金額（全体）</div></div>
-  <div class="sum-card"><div class="v num" id="sumExpSales">¥0</div><div class="k">見込み売上</div></div>
-  <div class="sum-card"><div class="v num" id="sumExpProfit">¥0</div><div class="k">見込み利益</div></div>
+  <div class="sum-card"><div class="v num" id="sumStockN">0</div><div class="k">在庫件数</div></div>
+  <div class="sum-card"><div class="v num" id="sumStale">¥0</div><div class="k">90日超の在庫</div></div>
 </div>
 <div id="stockBreak" style="padding:4px 14px 0;font-size:11.5px;color:var(--sub);line-height:1.7"></div>
 <div id="countLine" style="padding:2px 14px 0;font-size:11.5px;color:var(--sub)"></div>
@@ -233,12 +236,51 @@ nav button.on{color:var(--indigo);font-weight:700}
     <div class="fcard">
       <h3>お金（仕入れ・販売）</h3>
       <div class="fgrid">
-        <div class="frow"><label>仕入額（円）</label><input id="f仕入額" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="frow"><label>仕入額（円）</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="f仕入額" type="number" inputmode="numeric" placeholder="0">
+            <button type="button" id="btnCalc" aria-label="割引電卓" style="flex:0 0 42px;height:42px;border:1px solid var(--line);border-radius:8px;background:var(--indigo-pale);color:var(--indigo);font-size:20px">🧮</button>
+          </div></div>
         <div class="frow"><label>販売価格（売れた額）</label><input id="f販売価格" type="number" inputmode="numeric" placeholder="未売却は空欄"></div>
         <div class="frow"><label>手数料（実額）</label><input id="f手数料" type="number" inputmode="numeric" placeholder="空欄=自動見積"></div>
         <div class="frow"><label>送料（発送）</label><input id="f送料" type="number" inputmode="numeric" placeholder="0"></div>
         <div class="frow"><label>梱包資材</label><input id="f梱包資材" type="number" inputmode="numeric" placeholder="0"></div>
         <div class="frow"><label>その他経費</label><input id="fその他経費" type="number" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div id="calcPanel" style="display:none;margin-top:4px;border:1.5px dashed var(--indigo);border-radius:10px;padding:10px 12px;background:var(--indigo-pale)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b style="font-size:13px;color:var(--indigo)">🧮 割引電卓</b>
+          <button type="button" id="calcClose" style="color:var(--sub);font-size:16px;padding:2px 6px">✕</button>
+        </div>
+        <div class="frow" style="margin-bottom:8px"><label>店頭価格（割引前）</label><input id="cPrice" type="number" inputmode="numeric" placeholder="例: 3980"></div>
+        <div class="frow" style="margin-bottom:8px"><label>割引</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:0 0 auto;background:#fff">
+              <button type="button" class="calcMode on" data-mode="pct" style="padding:8px 12px;font-size:13px">%オフ</button>
+              <button type="button" class="calcMode" data-mode="yen" style="padding:8px 12px;font-size:13px">円引き</button>
+            </span>
+            <input id="cDisc" type="number" inputmode="numeric" placeholder="0" style="flex:1">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <button type="button" class="chip calcQuick" data-v="10">10%</button>
+            <button type="button" class="chip calcQuick" data-v="20">20%</button>
+            <button type="button" class="chip calcQuick" data-v="30">30%</button>
+            <button type="button" class="chip calcQuick" data-v="50">50%</button>
+            <button type="button" class="chip calcQuick" data-v="0">割引なし</button>
+          </div>
+        </div>
+        <div class="frow" style="margin-bottom:8px"><label>税</label>
+          <span style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff">
+            <button type="button" class="calcTax on" data-tax="incl" style="padding:8px 12px;font-size:13px">税込のまま</button>
+            <button type="button" class="calcTax" data-tax="excl" style="padding:8px 12px;font-size:13px">税抜 → 税込(10%)</button>
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0 8px;border-top:1px solid rgba(46,78,121,.15)">
+          <span style="font-size:13px;color:var(--sub)">実質価格</span>
+          <b class="num" id="cResult" style="font-size:20px;color:var(--indigo)">—</b>
+        </div>
+        <button type="button" class="btn primary" id="calcApply" style="padding:10px">この金額を仕入額に入れる</button>
+        <div class="note" style="margin:6px 0 0">「店頭価格 ¥3,980（30%オフ）」のようなメモが備考に自動で入ります。</div>
       </div>
     </div>
 
@@ -548,12 +590,6 @@ function periodLabel(){
     default: return '全期間';
   }
 }
-function expPriceOf(it){ // 在庫の見込み売価
-  const st = it['ステータス'];
-  if(st==='入金待ち') return num(it['販売価格']) || num(it['開始価格']) || num(it['予想売価']) || num(it['相場']);
-  return num(it['開始価格']) || num(it['予想売価']) || num(it['相場']);
-}
-function expProfitOf(it){ const p = expPriceOf(it); if(p<=0) return null; return p - feeOf(it,p) - expenses(it) - realCost(it); }
 
 /* ============ クラウド同期（Firestore） ============ */
 function setSyncInfo(){
@@ -832,22 +868,19 @@ function renderSummary(arr){
   // 在庫（検索だけ反映、期間・ステータスは無視＝全体）
   const q = $('q').value;
   const stock = items.filter(it => it['ステータス']!=='取引完了' && matches(it, q));
-  let stockSum = 0, expSales = 0, expProfit = 0, noPrice = 0, staleN = 0, staleAmt = 0;
+  let stockSum = 0, staleN = 0, staleAmt = 0;
   const by = {'出品前':{n:0,amt:0}, '出品中':{n:0,amt:0}, '入金待ち':{n:0,amt:0}};
   stock.forEach(it=>{
     const c = realCost(it); stockSum += c;
     const st = by[it['ステータス']] || (by[it['ステータス']] = {n:0,amt:0}); st.n++; st.amt += c;
-    const ep = expPriceOf(it); if(ep>0){ expSales += ep; expProfit += expProfitOf(it); } else noPrice++;
     const d = stockDays(it); if(d!=null && d>=90 && it['ステータス']!=='入金待ち'){ staleN++; staleAmt += c; }
   });
   $('sumStock').textContent = yen(stockSum);
-  $('sumExpSales').textContent = yen(expSales);
-  $('sumExpProfit').textContent = (expProfit<0?'-':'') + yen(Math.abs(expProfit));
-  $('sumExpProfit').style.color = expProfit<0? 'var(--bad)' : (expProfit>0? 'var(--ok)' : '');
-  let h = ['出品前','出品中','入金待ち'].map(k => '<span style="white-space:nowrap">' + k + ' <b class="num" style="color:var(--ink)">' + by[k].n + '件</b> ' + yen(by[k].amt) + '</span>').join('<span style="opacity:.5">　｜　</span>');
-  if(staleN) h += '<br><span style="color:var(--bad);font-weight:600">⚠ 90日超の在庫 ' + staleN + '件 ' + yen(staleAmt) + '</span>';
-  if(noPrice) h += '<span style="opacity:.8">' + (staleN? '　｜　' : '<br>') + '価格未設定 ' + noPrice + '件（見込みに未反映）</span>';
-  $('stockBreak').innerHTML = h;
+  $('sumStockN').textContent = stock.length;
+  $('sumStale').textContent = staleN? yen(staleAmt) : '¥0';
+  $('sumStale').style.color = staleN? 'var(--bad)' : '';
+  $('sumStale').nextElementSibling.textContent = staleN? '90日超の在庫（' + staleN + '件）' : '90日超の在庫';
+  $('stockBreak').innerHTML = ['出品前','出品中','入金待ち'].map(k => '<span style="white-space:nowrap">' + k + ' <b class="num" style="color:var(--ink)">' + by[k].n + '件</b> ' + yen(by[k].amt) + '</span>').join('<span style="opacity:.5">　｜　</span>');
   $('countLine').textContent = '表示 ' + arr.length + '件' + (pr? '（' + lb + 'に仕入れ or 売却）' : '');
 }
 function card(it){
@@ -990,6 +1023,7 @@ function openForm(id){
   const get = k => it? (it[k]??'') : '';
   ['商品名','仕入れ元','備考','画像'].forEach(k=> $('f'+k).value = get(k));
   formPendingBlob = null;
+  $('calcPanel').style.display = 'none'; $('cPrice').value = ''; $('cDisc').value = '';
   updateImgPrev();
   if(it && !String(it['画像']||'').trim() && localImg[String(it['ID'])]){ $('imgPrev').src = localImg[String(it['ID'])]; $('imgPrev').classList.add('on'); }
   $('imgFile').value = '';
@@ -1618,6 +1652,44 @@ $('btnFeeSave').onclick = ()=>{
   LS.set('settings', settings); toast('手数料率を保存しました'); render();
 };
 $('imgFile').addEventListener('change', e=>{ if(e.target.files[0]) uploadImage(e.target.files[0]); });
+/* ---- 割引電卓 ---- */
+let calcMode = 'pct', calcTax = 'incl';
+function calcValue(){
+  const p = num($('cPrice').value); if(p<=0) return null;
+  const base = calcTax==='excl'? p * 1.1 : p;
+  const d = num($('cDisc').value);
+  const v = calcMode==='pct'? base * (1 - Math.min(100, Math.max(0, d))/100) : base - d;
+  return Math.max(0, Math.round(v));
+}
+function calcUpdate(){
+  const v = calcValue();
+  $('cResult').textContent = v==null? '—' : yen(v);
+  document.querySelectorAll('.calcMode').forEach(b=> b.classList.toggle('on', b.dataset.mode===calcMode));
+  document.querySelectorAll('.calcTax').forEach(b=> b.classList.toggle('on', b.dataset.tax===calcTax));
+  $('cDisc').placeholder = calcMode==='pct'? '例: 30' : '例: 500';
+}
+$('btnCalc').onclick = ()=>{
+  const pnl = $('calcPanel');
+  const open = pnl.style.display==='none';
+  pnl.style.display = open? '' : 'none';
+  if(open){ calcUpdate(); setTimeout(()=> $('cPrice').focus(), 50); }
+};
+$('calcClose').onclick = ()=>{ $('calcPanel').style.display = 'none'; };
+document.querySelectorAll('.calcMode').forEach(b=> b.onclick = ()=>{ calcMode = b.dataset.mode; calcUpdate(); });
+document.querySelectorAll('.calcTax').forEach(b=> b.onclick = ()=>{ calcTax = b.dataset.tax; calcUpdate(); });
+document.querySelectorAll('.calcQuick').forEach(b=> b.onclick = ()=>{ calcMode = 'pct'; $('cDisc').value = b.dataset.v==='0'? '' : b.dataset.v; calcUpdate(); });
+['cPrice','cDisc'].forEach(id=> $(id).addEventListener('input', calcUpdate));
+$('calcApply').onclick = ()=>{
+  const v = calcValue(); if(v==null){ toast('店頭価格を入れてください'); return; }
+  $('f仕入額').value = v;
+  const p = num($('cPrice').value), d = num($('cDisc').value);
+  const memo = '店頭価格 ' + yen(p) + (calcTax==='excl'? '(税抜)' : '') + (d>0? '（' + (calcMode==='pct'? d + '%オフ' : d + '円引き') + '）' : '');
+  const bk = $('f備考');
+  if(bk.value.indexOf('店頭価格 ') < 0) bk.value = (bk.value.trim()? bk.value.trim() + '\n' : '') + memo;
+  $('calcPanel').style.display = 'none';
+  liveCalc();
+  toast('仕入額に ' + yen(v) + ' を入れました');
+};
 $('f画像').addEventListener('input', ()=>{ if($('f画像').value.trim()){ formPendingBlob = null; $('imgMsg').style.display='none'; } updateImgPrev(); });
 $('csvFile').addEventListener('change', e=>{ if(e.target.files[0]) handleCSV(e.target.files[0]); });
 $('btnImport').onclick = runImport;
