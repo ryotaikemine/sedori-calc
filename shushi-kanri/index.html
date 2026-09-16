@@ -173,11 +173,23 @@ nav button.on{color:var(--indigo);font-weight:700}
   </select>
 </div>
 
-<div class="summary">
-  <div class="sum-card"><div class="v num" id="sumCount">0</div><div class="k">表示件数</div></div>
-  <div class="sum-card"><div class="v num" id="sumStock">¥0</div><div class="k">在庫金額</div></div>
-  <div class="sum-card"><div class="v num" id="sumProfit">¥0</div><div class="k">利益（表示分）</div></div>
+<div class="chiprow" id="periodChips" style="padding-top:6px"></div>
+<div id="periodCustom" style="display:none;padding:2px 14px 0;gap:6px;align-items:center;font-size:12px;color:var(--sub)">
+  <input type="date" id="pFrom" style="width:auto;padding:5px 8px;font-size:13px"><span>〜</span>
+  <input type="date" id="pTo" style="width:auto;padding:5px 8px;font-size:13px">
 </div>
+<div class="summary" id="sumPeriod">
+  <div class="sum-card"><div class="v num" id="sumSoldN">0</div><div class="k" id="sumSoldNK">売れた件数</div></div>
+  <div class="sum-card"><div class="v num" id="sumSales">¥0</div><div class="k">売上</div></div>
+  <div class="sum-card"><div class="v num" id="sumProfit">¥0</div><div class="k">利益</div></div>
+</div>
+<div class="summary" style="padding-top:4px">
+  <div class="sum-card"><div class="v num" id="sumStock">¥0</div><div class="k">在庫金額（全体）</div></div>
+  <div class="sum-card"><div class="v num" id="sumExpSales">¥0</div><div class="k">見込み売上</div></div>
+  <div class="sum-card"><div class="v num" id="sumExpProfit">¥0</div><div class="k">見込み利益</div></div>
+</div>
+<div id="stockBreak" style="padding:4px 14px 0;font-size:11.5px;color:var(--sub);line-height:1.7"></div>
+<div id="countLine" style="padding:2px 14px 0;font-size:11.5px;color:var(--sub)"></div>
 
 <main class="view on" id="viewList">
   <div id="list"></div>
@@ -282,7 +294,12 @@ nav button.on{color:var(--indigo);font-weight:700}
 <!-- ============ 分析 ============ -->
 <section class="view" id="viewStats">
   <div class="pagehead" style="display:flex;align-items:center;gap:6px">
-    <span>分析</span><span style="flex:1"></span>
+    <span>分析</span>
+    <span style="display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-left:6px">
+      <button id="scMonth" class="chip on" style="border:none;border-radius:0;padding:4px 12px">月</button>
+      <button id="scYear" class="chip" style="border:none;border-radius:0;padding:4px 12px">年</button>
+    </span>
+    <span style="flex:1"></span>
     <button id="mPrev" style="font-size:16px;padding:6px 12px;color:var(--indigo)">◀</button>
     <b id="mLabel" class="num" style="font-size:15px"></b>
     <button id="mNext" style="font-size:16px;padding:6px 12px;color:var(--indigo)">▶</button>
@@ -293,28 +310,41 @@ nav button.on{color:var(--indigo);font-weight:700}
     <div class="sum-card"><div class="v num" id="stProfit">¥0</div><div class="k">純利益</div></div>
     <div class="sum-card"><div class="v num" id="stRate">—</div><div class="k">利益率</div></div>
   </div>
+  <div class="summary" style="flex-wrap:wrap;padding-top:4px">
+    <div class="sum-card"><div class="v num" id="stSoldN">0件</div><div class="k">売れた数</div></div>
+    <div class="sum-card"><div class="v num" id="stAvgProfit">¥0</div><div class="k">1点あたり利益</div></div>
+    <div class="sum-card"><div class="v num" id="stAvgDays">—</div><div class="k">売却まで平均</div></div>
+    <div class="sum-card"><div class="v num" id="stYoY">—</div><div class="k" id="stYoYK">前年同期比（利益）</div></div>
+  </div>
   <div class="formwrap" style="padding-top:10px">
-    <div class="fcard"><h3>月別推移（6ヶ月）</h3>
+    <div class="fcard"><h3 id="chartTitle">月別推移（6ヶ月）</h3>
       <div id="chartWrap"></div>
-      <div style="display:flex;gap:14px;font-size:11px;color:var(--sub);margin-top:4px;justify-content:center">
+      <div id="chartLegend" style="display:flex;gap:14px;font-size:11px;color:var(--sub);margin-top:4px;justify-content:center;flex-wrap:wrap">
         <span><b style="color:#2E4E79">━</b> 売上</span>
         <span><b style="color:#B3372B">━</b> コスト</span>
         <span><b style="color:#20794D">━</b> 純利益</span>
         <span><b style="color:#8A8F86">┅</b> 仕入れ（支出）</span>
       </div>
     </div>
-    <div class="fcard"><h3>今月のお金の出入り</h3>
+    <div class="fcard" id="yoyCard" style="display:none"><h3 id="yoyTitle">去年との比較（月ごと）</h3><div id="yoyTable"></div></div>
+    <div class="fcard"><h3 id="cashTitle">今月のお金の出入り</h3>
       <div id="cashBox"></div>
       <div class="note">※上のグラフの3本（売上・コスト・純利益）は「売れた商品」の損益です。仕入れの点線は実際にお金が出ていったタイミングを表します。</div>
     </div>
-    <div class="fcard"><h3>当月の仕入れ</h3>
+    <div class="fcard"><h3 id="buyTitle">当月の仕入れ</h3>
       <div class="calcbox">
         <div class="cr"><span>仕入れ件数</span><b class="num" id="stBuyN">0件</b></div>
         <div class="cr"><span>仕入れ金額（実質）</span><b class="num" id="stBuyAmt">¥0</b></div>
       </div>
     </div>
-    <div class="fcard"><h3>プラットフォーム別（当月の利益）</h3><div id="pfTable"></div></div>
-    <div class="fcard"><h3>価格帯（ティア）別（当月の利益）</h3><div id="tierTable"></div></div>
+    <div class="fcard"><h3 id="pfTitle">プラットフォーム別（当月の利益）</h3><div id="pfTable"></div></div>
+    <div class="fcard"><h3 id="tierTitle">価格帯（ティア）別（当月の利益）</h3><div id="tierTable"></div></div>
+    <div class="fcard"><h3 id="srcTitle">仕入れ元別（当月の利益）</h3><div id="srcTable"></div>
+      <div class="note">どこで買った物が利益率が高く、早く売れているかの答え合わせ。仕入れ元が空欄の商品は「未設定」にまとまります。</div></div>
+    <div class="fcard"><h3 id="rotTitle">ティア別の回転（当月に売れた物）</h3><div id="rotTable"></div>
+      <div class="note">出品日（無ければ仕入日）から売れた日までの平均日数。</div></div>
+    <div class="fcard"><h3 id="distTitle">利益率の分布（当月に売れた物）</h3><div id="distTable"></div>
+      <div class="note">判定〇で仕入れたのに薄利になっている物が多ければ、ティアの基準や値下げペースの見直しサインです。</div></div>
   </div>
 </section>
 
@@ -428,6 +458,7 @@ let items = LS.get('cacheItems', []);
 let statusFilter = LS.get('statusFilter', '');
 let sortMode = LS.get('sortMode', 'new');
 let detailMode = LS.get('detailMode', true);
+let period = LS.get('period', {mode:'all', from:'', to:''});
 let editingId = null;
 let csvRows = null;
 
@@ -494,6 +525,35 @@ function stockDays(it){
   const d = normDate(it['仕入日']); if(!d) return null;
   return daysBetween(d, today());
 }
+function soldDateOf(it){ return normDate(it['取引完了日']) || normDate(it['取引日']); }
+function fmtD(y,m,d){ return y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+function lastDayOf(y,m){ return new Date(y, m+1, 0).getDate(); }
+function periodRange(){ // [from,to]（両端含む）／全期間は null
+  const t = new Date(), y = t.getFullYear(), m = t.getMonth();
+  switch(period.mode){
+    case 'month': return [fmtD(y,m,1), fmtD(y,m,lastDayOf(y,m))];
+    case 'lastMonth': { const d = new Date(y, m-1, 1); const yy=d.getFullYear(), mm=d.getMonth(); return [fmtD(yy,mm,1), fmtD(yy,mm,lastDayOf(yy,mm))]; }
+    case 'year': return [y+'-01-01', y+'-12-31'];
+    case 'lastYear': return [(y-1)+'-01-01', (y-1)+'-12-31'];
+    case 'custom': return (period.from || period.to) ? [period.from || '0000-01-01', period.to || '9999-12-31'] : null;
+    default: return null;
+  }
+}
+function inRange(ds, r){ if(!r) return true; if(!ds) return false; return ds >= r[0] && ds <= r[1]; }
+function periodLabel(){
+  const jp = ds => { if(!ds) return ''; const p = ds.split('-'); return p[0] + '/' + Number(p[1]) + '/' + Number(p[2]); };
+  switch(period.mode){
+    case 'month': return '今月'; case 'lastMonth': return '先月'; case 'year': return '今年'; case 'lastYear': return '去年';
+    case 'custom': { const r = periodRange(); if(!r) return '期間指定'; return (period.from? jp(period.from) : '') + '〜' + (period.to? jp(period.to) : ''); }
+    default: return '全期間';
+  }
+}
+function expPriceOf(it){ // 在庫の見込み売価
+  const st = it['ステータス'];
+  if(st==='入金待ち') return num(it['販売価格']) || num(it['開始価格']) || num(it['予想売価']) || num(it['相場']);
+  return num(it['開始価格']) || num(it['予想売価']) || num(it['相場']);
+}
+function expProfitOf(it){ const p = expPriceOf(it); if(p<=0) return null; return p - feeOf(it,p) - expenses(it) - realCost(it); }
 
 /* ============ クラウド同期（Firestore） ============ */
 function setSyncInfo(){
@@ -697,6 +757,8 @@ function comparator(){
 function filtered(){
   const q = $('q').value;
   let arr = items.filter(it => matches(it, q));
+  const pr = periodRange();
+  if(pr) arr = arr.filter(it => inRange(soldDateOf(it), pr) || inRange(normDate(it['仕入日']), pr));
   if(statusFilter==='__noname__') arr = arr.filter(it => !String(it['商品名']||'').trim());
   else if(statusFilter) arr = arr.filter(it => it['ステータス']===statusFilter);
   const c = comparator();
@@ -723,16 +785,14 @@ function render(){
   const arr = filtered();
   const list = $('list');
   list.innerHTML = '';
-  let stockSum = 0, profitSum = 0;
   const PAGE = 60;
   let drawn = 0;
   const pending = [];
   for(const it of arr){
-    if(it['ステータス']!=='取引完了') stockSum += realCost(it);
-    const pr = profitOf(it); if(pr!=null && it['ステータス']==='取引完了') profitSum += pr;
-      if(drawn < PAGE){ list.appendChild(wrapSwipe(it)); drawn++; }
+    if(drawn < PAGE){ list.appendChild(wrapSwipe(it)); drawn++; }
     else { pending.push(it); }
   }
+  renderSummary(arr);
   if(pending.length){
     const moreBtn = document.createElement('button');
     moreBtn.className = 'btn';
@@ -751,10 +811,44 @@ function render(){
   if(arr.length===0){
     list.innerHTML = '<div class="empty">' + (items.length===0 ? 'まだ商品がありません。<br>右下の＋から登録するか、設定からCSVを取り込めます。' : '検索に一致する商品がありません') + '</div>';
   }
-  $('sumCount').textContent = arr.length;
-  $('sumStock').textContent = yen(stockSum);
-  $('sumProfit').textContent = yen(profitSum);
   renderChips();
+}
+function renderSummary(arr){
+  // 期間の成績（検索・ステータス絞り込みを反映、期間は売れた日で判定）
+  const pr = periodRange();
+  let soldN = 0, sales = 0, profit = 0;
+  arr.forEach(it=>{
+    if(it['ステータス']!=='取引完了') return;
+    if(!inRange(soldDateOf(it), pr)) return;
+    const p = num(it['販売価格']); const g = profitOf(it);
+    soldN++; sales += p; if(g!=null) profit += g;
+  });
+  const lb = periodLabel();
+  $('sumSoldN').textContent = soldN;
+  $('sumSoldNK').textContent = '売れた件数（' + lb + '）';
+  $('sumSales').textContent = yen(sales);
+  $('sumProfit').textContent = (profit<0?'-':'') + yen(Math.abs(profit));
+  $('sumProfit').style.color = profit<0? 'var(--bad)' : (profit>0? 'var(--ok)' : '');
+  // 在庫（検索だけ反映、期間・ステータスは無視＝全体）
+  const q = $('q').value;
+  const stock = items.filter(it => it['ステータス']!=='取引完了' && matches(it, q));
+  let stockSum = 0, expSales = 0, expProfit = 0, noPrice = 0, staleN = 0, staleAmt = 0;
+  const by = {'出品前':{n:0,amt:0}, '出品中':{n:0,amt:0}, '入金待ち':{n:0,amt:0}};
+  stock.forEach(it=>{
+    const c = realCost(it); stockSum += c;
+    const st = by[it['ステータス']] || (by[it['ステータス']] = {n:0,amt:0}); st.n++; st.amt += c;
+    const ep = expPriceOf(it); if(ep>0){ expSales += ep; expProfit += expProfitOf(it); } else noPrice++;
+    const d = stockDays(it); if(d!=null && d>=90 && it['ステータス']!=='入金待ち'){ staleN++; staleAmt += c; }
+  });
+  $('sumStock').textContent = yen(stockSum);
+  $('sumExpSales').textContent = yen(expSales);
+  $('sumExpProfit').textContent = (expProfit<0?'-':'') + yen(Math.abs(expProfit));
+  $('sumExpProfit').style.color = expProfit<0? 'var(--bad)' : (expProfit>0? 'var(--ok)' : '');
+  let h = ['出品前','出品中','入金待ち'].map(k => '<span style="white-space:nowrap">' + k + ' <b class="num" style="color:var(--ink)">' + by[k].n + '件</b> ' + yen(by[k].amt) + '</span>').join('<span style="opacity:.5">　｜　</span>');
+  if(staleN) h += '<br><span style="color:var(--bad);font-weight:600">⚠ 90日超の在庫 ' + staleN + '件 ' + yen(staleAmt) + '</span>';
+  if(noPrice) h += '<span style="opacity:.8">' + (staleN? '　｜　' : '<br>') + '価格未設定 ' + noPrice + '件（見込みに未反映）</span>';
+  $('stockBreak').innerHTML = h;
+  $('countLine').textContent = '表示 ' + arr.length + '件' + (pr? '（' + lb + 'に仕入れ or 売却）' : '');
 }
 function card(it){
   const el = document.createElement('div');
@@ -830,6 +924,16 @@ function renderChips(){
     b.onclick = ()=>{ statusFilter = st; LS.set('statusFilter', st); render(); };
     sc.appendChild(b);
   });
+  const pc = $('periodChips');
+  pc.innerHTML = '';
+  [['all','全期間'],['month','今月'],['lastMonth','先月'],['year','今年'],['lastYear','去年'],['custom','日付指定']].forEach(([k,lb])=>{
+    const b = document.createElement('button');
+    b.className = 'chip' + (period.mode===k?' on':'');
+    b.textContent = (k==='all'? '📅 ' : '') + lb;
+    b.onclick = ()=>{ period.mode = k; LS.set('period', period); $('periodCustom').style.display = k==='custom'? 'flex' : 'none'; render(); };
+    pc.appendChild(b);
+  });
+  $('periodCustom').style.display = period.mode==='custom'? 'flex' : 'none';
   const sv = $('savedChips');
   sv.innerHTML = '';
   const bAdd = document.createElement('button');
@@ -871,7 +975,9 @@ function switchView(v){
   $('statusChips').style.display = listMode? '' : 'none';
   $('savedChips').style.display = listMode? '' : 'none';
   $('sortBar').style.display = listMode? 'flex' : 'none';
-  document.querySelector('.summary').style.display = listMode? '' : 'none';
+  ['periodChips','stockBreak','countLine'].forEach(id => $(id).style.display = listMode? '' : 'none');
+  $('periodCustom').style.display = (listMode && period.mode==='custom')? 'flex' : 'none';
+  document.querySelectorAll('.summary').forEach(el => { if(el.closest('#viewStats')) return; el.style.display = listMode? '' : 'none'; });
   window.scrollTo(0,0);
 }
 function openForm(id){
@@ -1234,57 +1340,102 @@ function swipeDel(it){
 
 /* ============ 分析 ============ */
 let statsMonth = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); })();
+let statsScope = LS.get('statsScope', 'month'); // 'month' | 'year'
 function shiftMonth(mk, n){ const p = mk.split('-'); const d = new Date(Number(p[0]), Number(p[1])-1+n, 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
-function soldMonthOf(it){ const d = normDate(it['取引完了日']) || normDate(it['取引日']); return d? d.slice(0,7) : ''; }
-function soldStats(mk){
-  const arr = items.filter(it=> it['ステータス']==='取引完了' && soldMonthOf(it)===mk);
-  let sales=0, cost=0;
+function soldMonthOf(it){ const d = soldDateOf(it); return d? d.slice(0,7) : ''; }
+function keyOf(it, isYear){ const d = soldDateOf(it); return d? (isYear? d.slice(0,4) : d.slice(0,7)) : ''; }
+function curKey(){ return statsScope==='year'? statsMonth.slice(0,4) : statsMonth; }
+function prevKey(k){ return k.length===4? String(Number(k)-1) : shiftMonth(k, -12); }
+function daysToSell(it){
+  const f = normDate(it['出品日']) || normDate(it['仕入日']); const sd = soldDateOf(it);
+  if(!f || !sd) return null; const n = Math.round((new Date(sd) - new Date(f))/86400000); return n>=0? n : null;
+}
+function costOf(it, p){ return realCost(it) + expenses(it) + feeOf(it, p); }
+function soldStats(k){ // k = 'YYYY-MM' or 'YYYY'
+  const isYear = k.length===4;
+  const arr = items.filter(it=> it['ステータス']==='取引完了' && keyOf(it, isYear)===k);
+  let sales=0, cost=0, dsum=0, dn=0;
   arr.forEach(it=>{
     const p = num(it['販売価格']);
-    sales += p;
-    cost += realCost(it) + expenses(it) + feeOf(it, p);
+    sales += p; cost += costOf(it, p);
+    const d = daysToSell(it); if(d!=null){ dsum += d; dn++; }
   });
-  return {arr: arr, sales: sales, cost: cost, profit: sales - cost};
+  return {arr: arr, sales: sales, cost: cost, profit: sales - cost, n: arr.length, avgDays: dn? Math.round(dsum/dn) : null};
 }
-function buyOfMonth(mk){
-  const arr = items.filter(it=> (normDate(it['仕入日'])||'').slice(0,7)===mk);
+function buyOf(k){
+  const arr = items.filter(it=> (normDate(it['仕入日'])||'').slice(0, k.length)===k);
   return {n: arr.length, amt: arr.reduce((a,it)=> a + realCost(it), 0)};
 }
-function groupTable(arr, keyFn){
+function groupTable(arr, keyFn, opts){
+  opts = opts || {};
   const g = {};
   arr.forEach(it=>{
     const k = keyFn(it);
-    if(!g[k]) g[k] = {n:0, sales:0, profit:0};
+    if(!g[k]) g[k] = {n:0, sales:0, profit:0, dsum:0, dn:0};
     const p = num(it['販売価格']);
     g[k].n++; g[k].sales += p;
-    g[k].profit += p - (realCost(it) + expenses(it) + feeOf(it, p));
+    g[k].profit += p - costOf(it, p);
+    const d = daysToSell(it); if(d!=null){ g[k].dsum += d; g[k].dn++; }
   });
   const keys = Object.keys(g);
-  if(!keys.length) return '<div class="note">この月に売れた商品はありません</div>';
-  keys.sort((a,b)=> g[b].profit - g[a].profit);
+  if(!keys.length) return '<div class="note">この期間に売れた商品はありません</div>';
+  keys.sort((a,b)=> opts.sortKeys? opts.sortKeys(a,b) : g[b].profit - g[a].profit);
   let h = '<div class="calcbox">';
   keys.forEach(k=>{
     const o = g[k];
-    h += '<div class="cr"><span>' + k + '（' + o.n + '件）</span><b class="num">' + yen(o.profit) + '<small style="font-weight:400;color:var(--sub)">｜売上 ' + yen(o.sales) + '</small></b></div>';
+    const rate = o.sales>0? Math.round(o.profit/o.sales*100) + '%' : '—';
+    const days = o.dn? Math.round(o.dsum/o.dn) + '日' : '—';
+    h += '<div class="cr" style="flex-wrap:wrap"><span>' + k + '（' + o.n + '件）</span><b class="num">' + yen(o.profit)
+      + '<small style="font-weight:400;color:var(--sub)">｜率 ' + rate + (opts.days? '｜平均 ' + days : '') + '</small></b></div>';
   });
   return h + '</div>';
 }
+function distTable(arr){
+  if(!arr.length) return '<div class="note">この期間に売れた商品はありません</div>';
+  const buckets = [['赤字（0%未満）', r=> r<0, 'var(--bad)'], ['薄利（0〜20%）', r=> r>=0 && r<20, 'var(--warn)'], ['20〜30%', r=> r>=20 && r<30, ''], ['30〜40%', r=> r>=30 && r<40, 'var(--ok)'], ['40%以上', r=> r>=40, 'var(--ok)']];
+  const rates = arr.map(it=>{ const p = num(it['販売価格']); return p>0? (p - costOf(it,p))/p*100 : 0; });
+  const max = Math.max(1, ...buckets.map(b=> rates.filter(b[1]).length));
+  let h = '<div class="calcbox">';
+  buckets.forEach(b=>{
+    const n = rates.filter(b[1]).length;
+    h += '<div class="cr" style="align-items:center;gap:8px"><span style="flex:0 0 120px">' + b[0] + '</span>'
+      + '<span style="flex:1;height:10px;background:#fff;border-radius:5px;overflow:hidden"><span style="display:block;height:100%;width:' + Math.round(n/max*100) + '%;background:' + (b[2]||'var(--indigo)') + '"></span></span>'
+      + '<b class="num" style="flex:0 0 64px;text-align:right">' + n + '件<small style="font-weight:400;color:var(--sub)"> ' + Math.round(n/arr.length*100) + '%</small></b></div>';
+  });
+  return h + '</div>';
+}
+function tierOf(p){ return TIERS.find(x=> p>=x.min && p<x.max) || TIERS[TIERS.length-1]; }
+function tierLabel(t){ return t.name + '帯（' + (t.max===Infinity? t.min.toLocaleString() + '円〜' : t.min.toLocaleString() + '〜' + (t.max-1).toLocaleString() + '円') + '）'; }
 function drawChart(){
-  const months = [];
-  for(let i=5;i>=0;i--) months.push(shiftMonth(statsMonth, -i));
-  const data = months.map(mk=>{ const s = soldStats(mk); s.buy = buyOfMonth(mk).amt; return s; });
   const W=640, H=230, P=38;
-  const maxV = Math.max(1000, ...data.map(d=>d.sales), ...data.map(d=>d.cost), ...data.map(d=>Math.max(0,d.profit)), ...data.map(d=>d.buy));
-  const X = i=> P + i * (W - P*2) / (months.length - 1);
+  let months, data, series, labels = '';
+  if(statsScope==='year'){
+    const y = statsMonth.slice(0,4), py = String(Number(y)-1);
+    months = []; for(let i=1;i<=12;i++) months.push(String(i).padStart(2,'0'));
+    data = months.map(mm=>{ const a = soldStats(y+'-'+mm), b = soldStats(py+'-'+mm); return {sales:a.sales, profit:a.profit, psales:b.sales, pprofit:b.profit}; });
+    series = [['psales','#9FB3CF',true],['pprofit','#8FC3A8',true],['sales','#2E4E79',false],['profit','#20794D',false]];
+    months.forEach((mm,i)=>{ labels += '<text x="' + X(i) + '" y="' + (H-10) + '" font-size="10" fill="#6A7066" text-anchor="middle">' + Number(mm) + '月</text>'; });
+    $('chartTitle').textContent = y + '年の月別推移（薄い線＝' + py + '年）';
+    $('chartLegend').innerHTML = '<span><b style="color:#2E4E79">━</b> 売上 ' + y + '</span><span><b style="color:#20794D">━</b> 純利益 ' + y + '</span><span><b style="color:#9FB3CF">┅</b> 売上 ' + py + '</span><span><b style="color:#8FC3A8">┅</b> 純利益 ' + py + '</span>';
+  } else {
+    months = []; for(let i=5;i>=0;i--) months.push(shiftMonth(statsMonth, -i));
+    data = months.map(mk=>{ const s = soldStats(mk); s.buy = buyOf(mk).amt; return s; });
+    series = [['buy','#8A8F86',true],['sales','#2E4E79',false],['cost','#B3372B',false],['profit','#20794D',false]];
+    months.forEach((mk,i)=>{ labels += '<text x="' + X(i) + '" y="' + (H-10) + '" font-size="10" fill="#6A7066" text-anchor="middle">' + parseInt(mk.slice(5),10) + '月</text>'; });
+    $('chartTitle').textContent = '月別推移（6ヶ月）';
+    $('chartLegend').innerHTML = '<span><b style="color:#2E4E79">━</b> 売上</span><span><b style="color:#B3372B">━</b> コスト</span><span><b style="color:#20794D">━</b> 純利益</span><span><b style="color:#8A8F86">┅</b> 仕入れ（支出）</span>';
+  }
+  const allV = []; data.forEach(d=> series.forEach(sr=> allV.push(Math.max(0, d[sr[0]]||0))));
+  const maxV = Math.max(1000, ...allV);
+  function X(i){ return P + i * (W - P*2) / (months.length - 1); }
   const Y = v=> H - P - Math.max(0, v) / maxV * (H - P*2);
   function line(key, color, dashed){
     let pts = '', dots = '';
     data.forEach((d,i)=>{
-      pts += X(i) + ',' + Y(d[key]) + ' ';
-      dots += '<circle cx="' + X(i) + '" cy="' + Y(d[key]) + '" r="3.5" fill="#fff" stroke="' + color + '" stroke-width="2"/>';
+      pts += X(i) + ',' + Y(d[key]||0) + ' ';
+      if(!dashed) dots += '<circle cx="' + X(i) + '" cy="' + Y(d[key]||0) + '" r="3" fill="#fff" stroke="' + color + '" stroke-width="2"/>';
     });
-    const dash = dashed? ' stroke-dasharray="5,4"' : '';
-    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"' + dash + '/>' + dots;
+    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"' + (dashed? ' stroke-dasharray="5,4"' : '') + '/>' + dots;
   }
   let grid = '';
   [0, 0.5, 1].forEach(f=>{
@@ -1292,24 +1443,58 @@ function drawChart(){
     grid += '<line x1="' + P + '" y1="' + Y(v) + '" x2="' + (W-P) + '" y2="' + Y(v) + '" stroke="#DDE0DA"/>';
     grid += '<text x="' + (P-5) + '" y="' + (Y(v)+3) + '" font-size="10" fill="#6A7066" text-anchor="end">' + (v>=10000? (Math.round(v/1000)/10) + '万' : Math.round(v)) + '</text>';
   });
-  let labels = '';
-  months.forEach((mk,i)=>{ labels += '<text x="' + X(i) + '" y="' + (H-10) + '" font-size="10" fill="#6A7066" text-anchor="middle">' + parseInt(mk.slice(5),10) + '月</text>'; });
-  $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + grid + labels + line('buy','#8A8F86',true) + line('sales','#2E4E79') + line('cost','#B3372B') + line('profit','#20794D') + '</svg>';
+  $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + grid + labels + series.map(sr=> line(sr[0], sr[1], sr[2])).join('') + '</svg>';
+}
+function renderYoY(){
+  const card = $('yoyCard');
+  if(statsScope!=='year'){ card.style.display = 'none'; return; }
+  card.style.display = '';
+  const y = statsMonth.slice(0,4), py = String(Number(y)-1);
+  $('yoyTitle').textContent = y + '年 と ' + py + '年 の比較（月ごとの利益）';
+  let h = '<div class="calcbox">';
+  let any = false;
+  for(let i=1;i<=12;i++){
+    const mm = String(i).padStart(2,'0');
+    const a = soldStats(y+'-'+mm), b = soldStats(py+'-'+mm);
+    if(!a.n && !b.n) continue; any = true;
+    const diff = a.profit - b.profit;
+    const col = !b.n? 'var(--sub)' : (diff>=0? 'var(--ok)' : 'var(--bad)');
+    h += '<div class="cr"><span>' + i + '月</span><b class="num">' + yen(a.profit) + '<small style="font-weight:400;color:var(--sub)">｜去年 ' + (b.n? yen(b.profit) : '—') + '</small> <small style="color:' + col + ';font-weight:700">' + (b.n? (diff>=0? '+' : '') + yen(diff) : '') + '</small></b></div>';
+  }
+  h += '</div>';
+  $('yoyTable').innerHTML = any? h : '<div class="note">まだ比較できるデータがありません</div>';
 }
 function renderStats(){
-  $('mLabel').textContent = statsMonth.replace('-', '年') + '月';
-  const s = soldStats(statsMonth);
+  const isYear = statsScope==='year';
+  const k = curKey();
+  $('mLabel').textContent = isYear? k + '年' : statsMonth.replace('-', '年') + '月';
+  $('scMonth').classList.toggle('on', !isYear); $('scYear').classList.toggle('on', isYear);
+  const lbl = isYear? '年' : '月';
+  $('cashTitle').textContent = (isYear? 'この年' : '今月') + 'のお金の出入り';
+  $('buyTitle').textContent = '当' + lbl + 'の仕入れ';
+  $('pfTitle').textContent = 'プラットフォーム別（当' + lbl + 'の利益）';
+  $('tierTitle').textContent = '価格帯（ティア）別（当' + lbl + 'の利益）';
+  $('srcTitle').textContent = '仕入れ元別（当' + lbl + 'の利益）';
+  $('rotTitle').textContent = 'ティア別の回転（当' + lbl + 'に売れた物）';
+  $('distTitle').textContent = '利益率の分布（当' + lbl + 'に売れた物）';
+  const s = soldStats(k);
   $('stSales').textContent = yen(s.sales);
   $('stCost').textContent = yen(s.cost);
   $('stProfit').textContent = yen(s.profit);
   $('stRate').textContent = s.sales>0? Math.round(s.profit / s.sales * 100) + '%' : '—';
-  const buys = items.filter(it=> (normDate(it['仕入日'])||'').slice(0,7)===statsMonth);
-  $('stBuyN').textContent = buys.length + '件';
-  $('stBuyAmt').textContent = yen(buys.reduce((a,it)=> a + realCost(it), 0));
-  const bm = buyOfMonth(statsMonth);
+  $('stSoldN').textContent = s.n + '件';
+  $('stAvgProfit').textContent = s.n? yen(s.profit / s.n) : '—';
+  $('stAvgDays').textContent = s.avgDays!=null? s.avgDays + '日' : '—';
+  const ps = soldStats(prevKey(k));
+  $('stYoYK').textContent = isYear? '前年比（利益）' : '前年同月比（利益）';
+  if(ps.n){ const r = ps.profit? Math.round(s.profit / ps.profit * 100) : null; $('stYoY').textContent = r!=null? r + '%' : '—'; $('stYoY').style.color = r!=null && r>=100? 'var(--ok)' : (r!=null? 'var(--bad)' : ''); }
+  else { $('stYoY').textContent = '—'; $('stYoY').style.color = ''; }
+  const bm = buyOf(k);
+  $('stBuyN').textContent = bm.n + '件';
+  $('stBuyAmt').textContent = yen(bm.amt);
   const diff = s.sales - bm.amt;
   let cls, icon, msg;
-  if(bm.amt === 0 && s.sales === 0){ cls='#6A7066'; icon='—'; msg='この月はまだ動きがありません'; }
+  if(bm.amt === 0 && s.sales === 0){ cls='#6A7066'; icon='—'; msg='この期間はまだ動きがありません'; }
   else if(diff >= 0){ cls='#20794D'; icon='✅'; msg='売れた金額のほうが多く、手元のお金は増えています'; }
   else if(s.sales > 0 && bm.amt > s.sales * 1.5){ cls='#B3372B'; icon='⚠️'; msg='仕入れが売上を大きく超えています。在庫が膨らみ、手元の資金が減っています'; }
   else { cls='#B3372B'; icon='⚠️'; msg='仕入れが売上を上回っています。使いすぎに注意してください'; }
@@ -1317,18 +1502,28 @@ function renderStats(){
     '<div class="cr"><span>入ってきたお金（売上）</span><b class="num">' + yen(s.sales) + '</b></div>' +
     '<div class="cr"><span>出ていったお金（仕入れ）</span><b class="num">' + yen(bm.amt) + '</b></div>' +
     '<div class="cr" style="border-top:1px solid var(--line);padding-top:6px"><span>差し引き</span><b class="num" style="color:' + cls + '">' + (diff>=0? '+' : '') + yen(diff) + '</b></div>' +
-    '</div><div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:' + (diff>=0? 'var(--good-pale)' : 'var(--bad-pale)') + ';font-size:12.5px;line-height:1.5;color:' + cls + '">' + icon + ' ' + msg + '</div>';
+    '</div><div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:' + (diff>=0? 'var(--ok-pale)' : 'var(--bad-pale)') + ';font-size:12.5px;line-height:1.5;color:' + cls + '">' + icon + ' ' + msg + '</div>';
   $('pfTable').innerHTML = groupTable(s.arr, it=> it['プラットフォーム'] || 'その他');
-  $('tierTable').innerHTML = groupTable(s.arr, it=>{
-    const p = num(it['販売価格']);
-    const t = TIERS.find(x=> p>=x.min && p<x.max) || TIERS[TIERS.length-1];
-    return t.name + '帯（' + (t.max===Infinity? t.min.toLocaleString() + '円〜' : t.min.toLocaleString() + '〜' + (t.max-1).toLocaleString() + '円') + '）';
-  });
+  $('tierTable').innerHTML = groupTable(s.arr, it=> tierLabel(tierOf(num(it['販売価格']))), {sortKeys:(a,b)=> a.localeCompare(b)});
+  $('srcTable').innerHTML = groupTable(s.arr, it=> String(it['仕入れ元']||'').trim() || '未設定', {days:true});
+  $('rotTable').innerHTML = (function(){
+    if(!s.arr.length) return '<div class="note">この期間に売れた商品はありません</div>';
+    const g = {};
+    s.arr.forEach(it=>{ const t = tierOf(num(it['販売価格'])); const d = daysToSell(it); if(!g[t.name]) g[t.name] = {t:t, n:0, dsum:0, dn:0, fast:0}; g[t.name].n++; if(d!=null){ g[t.name].dsum += d; g[t.name].dn++; if(d<=30) g[t.name].fast++; } });
+    let h = '<div class="calcbox">';
+    TIERS.forEach(t=>{ const o = g[t.name]; if(!o) return;
+      h += '<div class="cr"><span>' + tierLabel(t) + '</span><b class="num">' + (o.dn? Math.round(o.dsum/o.dn) + '日' : '—') + '<small style="font-weight:400;color:var(--sub)">｜' + o.n + '件｜30日以内 ' + (o.dn? Math.round(o.fast/o.dn*100) : 0) + '%</small></b></div>'; });
+    return h + '</div>';
+  })();
+  $('distTable').innerHTML = distTable(s.arr);
   drawChart();
+  renderYoY();
 }
 $('navStats').onclick = ()=>{ renderStats(); switchView('viewStats'); };
-$('mPrev').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, -1); renderStats(); };
-$('mNext').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, 1); renderStats(); };
+$('mPrev').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, statsScope==='year'? -12 : -1); renderStats(); };
+$('mNext').onclick = ()=>{ statsMonth = shiftMonth(statsMonth, statsScope==='year'? 12 : 1); renderStats(); };
+$('scMonth').onclick = ()=>{ statsScope = 'month'; LS.set('statsScope', statsScope); renderStats(); };
+$('scYear').onclick = ()=>{ statsScope = 'year'; LS.set('statsScope', statsScope); renderStats(); };
 function syncDetailBtn(){ const b = $('detailBtn'); b.textContent = detailMode? '詳細' : 'シンプル'; b.style.color = detailMode? 'var(--indigo)' : 'var(--sub)'; b.style.borderColor = detailMode? 'var(--indigo)' : 'var(--line)'; }
 $('detailBtn').onclick = ()=>{ detailMode = !detailMode; LS.set('detailMode', detailMode); syncDetailBtn(); render(); };
 syncDetailBtn();
@@ -1369,6 +1564,9 @@ $('btnBulk').onclick = runBulk;
 
 /* ============ 起動 ============ */
 $('q').addEventListener('input', onSearch);
+$('pFrom').value = period.from || ''; $('pTo').value = period.to || '';
+$('pFrom').addEventListener('change', ()=>{ period.from = $('pFrom').value; LS.set('period', period); render(); });
+$('pTo').addEventListener('change', ()=>{ period.to = $('pTo').value; LS.set('period', period); render(); });
 $('qClear').onclick = ()=>{ $('q').value=''; onSearch(); };
 $('btnReload').onclick = ()=> reload(true);
 $('navList').onclick = ()=>{ switchView('viewList'); render(); };
