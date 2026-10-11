@@ -259,6 +259,16 @@ nav button.on{color:var(--indigo);font-weight:700}
     </div>
     <div class="fcard">
       <h3>各商品の販売価格</h3>
+      <div class="frow" style="margin-bottom:8px">
+        <span style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff">
+          <button type="button" class="calcMode bMode on" data-bmode="each" style="padding:8px 12px;font-size:13px">1点ずつ入力（ヤフオク向け）</button>
+          <button type="button" class="calcMode bMode" data-bmode="total" style="padding:8px 12px;font-size:13px">合計で入力（メルカリ向け）</button>
+        </span>
+      </div>
+      <div id="bTotalBox" style="display:none;margin-bottom:6px">
+        <div class="frow"><label>売れた合計金額（1つの取引の額）</label><input id="b合計" type="number" inputmode="numeric" placeholder="例: 5000"></div>
+        <div class="note" style="margin:0 0 6px">各商品に自動で振り分けます（商品ごとの予想売価→開始価格→相場の比率。どれも無ければ均等）。下の金額を直せば、残りの商品で合計が合うように調整します。</div>
+      </div>
       <div id="bRows"></div>
       <div class="calcbox" style="margin-top:8px">
         <div class="cr"><span>売上合計</span><b class="num" id="bSales">—</b></div>
@@ -1148,9 +1158,41 @@ function openBundle(bid){
     + '<div><div class="bk">送料・資材の負担分</div><div class="bv num bExpV">—</div></div>'
     + '<div><div class="bk">純利益</div><div class="bv num bProfV">—</div></div>'
     + '</div></div></div>').join('');
-  document.querySelectorAll('#bRows .bPrice').forEach(inp=> inp.addEventListener('input', bundleCalc));
-  bundleCalc();
+  document.querySelectorAll('#bRows .bPrice').forEach((inp,i)=> inp.addEventListener('input', ()=>{
+    if(bMode==='total'){ bFixed[i] = num(inp.value); applyTotal(); }
+    bundleCalc();
+  }));
+  // メルカリ・ラクマは「合計で入力」を最初から選ぶ
+  const pf = String(first['プラットフォーム']||'');
+  bFixed = {};
+  const existingTotal = list.reduce((a,it)=> a + num(it['販売価格']), 0);
+  $('b合計').value = existingTotal || '';
+  setBMode((pf==='メルカリ' || pf==='ラクマ' || pf==='メルカリShops') ? 'total' : 'each');
   switchView('viewBundle');
+}
+let bMode = 'each', bFixed = {};
+function setBMode(m){
+  bMode = m;
+  document.querySelectorAll('.bMode').forEach(b=> b.classList.toggle('on', b.dataset.bmode===m));
+  $('bTotalBox').style.display = m==='total'? '' : 'none';
+  bFixed = {};
+  if(m==='total') applyTotal();
+  bundleCalc();
+}
+function bWeight(it){ return num(it['予想売価']) || num(it['開始価格']) || num(it['相場']) || 0; }
+function applyTotal(){ // 合計を各商品に振り分けて価格欄に書き込む（手で直した商品は固定）
+  const list = bundleIds.map(id=> items.find(x=>String(x['ID'])===id)).filter(Boolean);
+  const inputs = [...document.querySelectorAll('#bRows .bPrice')];
+  const total = num($('b合計').value);
+  let fixedSum = 0; const free = [];
+  list.forEach((it,i)=>{ if(bFixed[i]!=null) fixedSum += bFixed[i]; else free.push(i); });
+  const rest = Math.max(0, total - fixedSum);
+  let w = free.map(i=> bWeight(list[i]));
+  const nz = w.filter(x=>x>0);
+  if(nz.length){ const avg = nz.reduce((a,b)=>a+b,0)/nz.length; w = w.map(x=> x>0? x : avg); } // 値付け未入力の商品は平均扱い
+  const parts = apportion(rest, w);
+  free.forEach((i,k)=>{ inputs[i].value = parts[k] || ''; });
+  Object.keys(bFixed).forEach(i=>{ inputs[i].value = bFixed[i] || ''; });
 }
 function bundleCalcRows(){ // 画面の入力から各商品の確定値を作る
   const list = bundleIds.map(id=> items.find(x=>String(x['ID'])===id)).filter(Boolean);
@@ -1224,6 +1266,8 @@ $('btnBundleSave').onclick = saveBundle;
 $('btnBundleCancel').onclick = ()=>{ bundleEditing = null; switchView('viewList'); render(); };
 $('btnBundleRelease').onclick = releaseBundle;
 ['b送料','b梱包資材'].forEach(id=> $(id).addEventListener('input', bundleCalc));
+document.querySelectorAll('.bMode').forEach(b=> b.onclick = ()=> setBMode(b.dataset.bmode));
+$('b合計').addEventListener('input', ()=>{ applyTotal(); bundleCalc(); });
 $('btnBundleOpen').onclick = ()=>{ const it = items.find(x=>String(x['ID'])===String(editingId)); if(it && it['同梱ID']) openBundle(it['同梱ID']); };
 function renderChips(){
   const sc = $('statusChips');
