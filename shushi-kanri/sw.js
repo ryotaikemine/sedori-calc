@@ -1,6 +1,6 @@
-/* 収支管理 PWA service worker v5 (Firebase版)
+/* 収支管理 PWA service worker v6 (Firebase版・同梱対応)
    ネット優先：常に最新を取りに行き、取れない時だけ保存版を出す */
-const CACHE = 'shushi-v5';
+const CACHE = 'shushi-v6';
 const PRECACHE = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {

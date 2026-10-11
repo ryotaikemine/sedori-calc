@@ -93,6 +93,40 @@ header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:14px}
 
 .thumb{flex:0 0 auto;width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--paper)}
+
+/* ---- 選択・同梱 ---- */
+.stamp.pick{cursor:pointer}
+.item.sel{outline:2px solid var(--indigo);outline-offset:-2px;background:var(--indigo-pale)}
+.selmark{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:2px solid var(--indigo);background:var(--indigo);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.selbar{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:31;display:none;
+  padding:8px 14px;background:rgba(245,246,243,.96);border-top:1px solid var(--line)}
+.selbar.on{display:flex;gap:8px;align-items:center}
+.selbar .btn{margin:0}
+@media(min-width:760px){.selbar{max-width:960px;margin:0 auto}}
+.bundle{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px 12px;border-left:4px solid var(--indigo)}
+.b-head{display:flex;align-items:center;gap:10px;cursor:pointer}
+.stack{position:relative;flex:0 0 auto;width:76px;height:56px}
+.stack img,.stack .ph{position:absolute;top:0;width:46px;height:46px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:var(--paper);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.stack .more{position:absolute;right:0;bottom:0;background:var(--indigo);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 6px}
+.b-title{font-size:14px;font-weight:700}
+.b-sub{font-size:11px;color:var(--sub);margin-top:2px}
+.b-body{display:none;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.bundle.open .b-body{display:block}
+.b-body .item{box-shadow:none;border:1px solid var(--line);margin-bottom:6px;padding:8px 10px}
+.b-foot{display:flex;gap:8px;margin-top:6px}
+.b-foot button{flex:1;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--indigo)}
+.b-chev{margin-left:auto;color:var(--sub);font-size:12px;transition:transform .2s}
+.bundle.open .b-chev{transform:rotate(180deg)}
+.bstrip{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+.bstrip img,.bstrip .ph{flex:0 0 auto;width:72px;height:72px;object-fit:cover;border-radius:10px;background:var(--paper);border:1px solid var(--line)}
+.brow{display:grid;grid-template-columns:56px 1fr;gap:8px 10px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.brow img,.brow .ph{width:56px;height:56px;object-fit:cover;border-radius:8px;background:var(--paper)}
+.brow .bn{font-size:13px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.brow .bi{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin-top:6px}
+.brow .bk{font-size:9.5px;color:var(--sub);line-height:1.2}
+.brow .bv{font-size:13px;font-weight:700}
+.brow input{padding:7px 9px;font-size:15px}
 .imgprev{max-width:100%;max-height:180px;border-radius:10px;margin-top:8px;display:none}
 .imgprev.on{display:block}
 
@@ -197,6 +231,46 @@ nav button.on{color:var(--indigo);font-weight:700}
 <main class="view on" id="viewList">
   <div id="list"></div>
 </main>
+<div class="selbar" id="selBar">
+  <button class="btn primary" id="btnBundle" style="flex:1;padding:11px">同梱にする（0点）</button>
+  <button class="btn ghost" id="btnSelClear" style="flex:0 0 auto;padding:11px 14px">やめる</button>
+</div>
+
+<!-- ============ 同梱フォーム ============ -->
+<section class="view" id="viewBundle">
+  <div class="pagehead" id="bundleTitle">同梱で売れた商品</div>
+  <div class="formwrap">
+    <div class="fcard">
+      <h3>この商品がまとめて売れました</h3>
+      <div class="bstrip" id="bStrip"></div>
+      <div class="note" id="bCount" style="margin:0"></div>
+    </div>
+    <div class="fcard">
+      <h3>取引（まとめて1回だけ入力）</h3>
+      <div class="fgrid">
+        <div class="frow"><label>売れた日</label><input id="b取引日" type="date"></div>
+        <div class="frow"><label>ステータス</label>
+          <select id="bステータス"><option>入金待ち</option><option>取引完了</option></select></div>
+        <div class="frow"><label>送料（発送1回分）</label><input id="b送料" type="number" inputmode="numeric" placeholder="0"></div>
+        <div class="frow"><label>梱包資材</label><input id="b梱包資材" type="number" inputmode="numeric" placeholder="0"></div>
+      </div>
+      <div class="frow"><label>購入者（任意）</label><input id="b購入者" placeholder="例: ヤフオクID"></div>
+      <div class="note" style="margin:0">送料と資材は、各商品の販売価格の比率で自動的に振り分けます。手数料は商品ごとに自動計算です。</div>
+    </div>
+    <div class="fcard">
+      <h3>各商品の販売価格</h3>
+      <div id="bRows"></div>
+      <div class="calcbox" style="margin-top:8px">
+        <div class="cr"><span>売上合計</span><b class="num" id="bSales">—</b></div>
+        <div class="cr"><span>手数料合計（自動）</span><b class="num" id="bFee">—</b></div>
+        <div class="cr"><span>純利益合計</span><b class="num" id="bProfit">—</b></div>
+      </div>
+    </div>
+    <button class="btn primary" id="btnBundleSave">この内容で保存する</button>
+    <button class="btn ghost" id="btnBundleCancel">キャンセル</button>
+    <button class="btn danger" id="btnBundleRelease" style="display:none">同梱を解除する（商品は単品に戻ります）</button>
+  </div>
+</section>
 
 <!-- ============ 入力フォーム ============ -->
 <section class="view" id="viewForm">
@@ -212,6 +286,7 @@ nav button.on{color:var(--indigo);font-weight:700}
       <button class="btn primary" id="btnBulk" style="display:none">まとめて登録する</button>
       <div class="note" id="bulkMsg" style="display:none"></div>
     </div>
+    <button class="toggle" id="btnBundleOpen" style="display:none;border-style:solid;border-color:var(--indigo);background:var(--indigo-pale)">📦 この商品は同梱の一部です — 同梱全体を編集する</button>
     <div class="fcard">
       <h3>基本情報</h3>
       <div class="frow"><label>商品名</label><input id="f商品名" placeholder="例: Burberry ゴルフ ポロシャツ L 紺"></div>
@@ -514,7 +589,10 @@ const TIERS = [
 ];
 const FIELDS = ['ID','ステータス','商品名','プラットフォーム','種類','仕入れ元','仕入日','出品日','発送日','取引日','取引完了日',
   '販売価格','仕入額','手数料','送料','梱包資材','その他経費','相場','開始価格','予想売価',
-  '元値','使用ポイント','使用クーポン','ポイント付与','備考','更新日時','画像'];
+  '元値','使用ポイント','使用クーポン','ポイント付与','備考','更新日時','画像','同梱ID','購入者'];
+let selected = new Set();   // 一覧で選択中の商品ID（同梱用）
+let bundleEditing = null;   // 同梱フォームで扱っている同梱ID（新規は null）
+let bundleIds = [];         // 同梱フォームに並んでいる商品ID
 
 const $ = id => document.getElementById(id);
 const yen = n => (n==null || isNaN(n)) ? '—' : '¥' + Math.round(n).toLocaleString('ja-JP');
@@ -824,11 +902,24 @@ function render(){
   const PAGE = 60;
   let drawn = 0;
   const pending = [];
+  // 同梱は1枚のカードにまとめる（最初に出てくる位置に表示）
+  const rows = [];
+  const seenB = new Set();
   for(const it of arr){
-    if(drawn < PAGE){ list.appendChild(wrapSwipe(it)); drawn++; }
-    else { pending.push(it); }
+    const bid = String(it['同梱ID']||'');
+    if(bid){
+      if(seenB.has(bid)) continue;
+      seenB.add(bid);
+      rows.push({ bundle: bid, items: arr.filter(x=> String(x['同梱ID']||'')===bid) });
+    } else rows.push(it);
+  }
+  const draw = r => r.bundle ? bundleCard(r.bundle, r.items) : wrapSwipe(r);
+  for(const r of rows){
+    if(drawn < PAGE){ list.appendChild(draw(r)); drawn++; }
+    else { pending.push(r); }
   }
   renderSummary(arr);
+  updateSelBar();
   if(pending.length){
     const moreBtn = document.createElement('button');
     moreBtn.className = 'btn';
@@ -837,7 +928,7 @@ function render(){
     moreBtn.onclick = function(){
       const next = pending.splice(0, PAGE);
       const frag = document.createDocumentFragment();
-      next.forEach(function(x){ frag.appendChild(wrapSwipe(x)); });
+      next.forEach(function(x){ frag.appendChild(draw(x)); });
       list.insertBefore(frag, moreBtn);
       if(pending.length){ moreBtn.textContent = 'もっと見る（残り ' + pending.length + ' 件）'; }
       else { moreBtn.remove(); }
@@ -945,8 +1036,195 @@ function card(it){
   el.querySelector('.i-name').textContent = it['商品名'] || '(名称未設定)';
   const tEl = el.querySelector('.thumb'); if(tEl) tEl.src = imgUrl;
   el.addEventListener('click', ()=> openForm(it['ID']));
+  // 右上の丸をタップで選択（同梱にする）
+  const id = String(it['ID']);
+  const stamp = el.querySelector('.stamp');
+  if(stamp && !it['同梱ID']){
+    stamp.classList.add('pick');
+    stamp.title = 'タップで選択（同梱にする）';
+    if(selected.has(id)){
+      el.classList.add('sel');
+      stamp.className = 'selmark'; stamp.textContent = '✓';
+    }
+    stamp.addEventListener('click', e=>{ e.stopPropagation(); toggleSelect(id); });
+  }
   return el;
 }
+function toggleSelect(id){
+  if(selected.has(id)) selected.delete(id); else selected.add(id);
+  render();
+}
+function updateSelBar(){
+  const n = selected.size;
+  $('selBar').classList.toggle('on', n>0);
+  $('btnBundle').textContent = '同梱にする（' + n + '点）';
+  $('btnBundle').disabled = n < 2;
+  document.body.style.paddingBottom = n>0 ? 'calc(124px + env(safe-area-inset-bottom))' : '';
+}
+function clearSelect(){ selected.clear(); render(); }
+function bundleCard(bid, list){
+  const el = document.createElement('div');
+  el.className = 'bundle';
+  const esc2 = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const jpDate = ds => { if(!ds) return ''; const p = ds.split('-'); return p.length===3? (p[0].slice(2) + '/' + Number(p[1]) + '/' + Number(p[2])) : ds; };
+  const thumbs = list.slice(0,3).map((it,i)=>{
+    const u = String(it['画像']||'').trim() || localImg[String(it['ID'])] || '';
+    const left = 'left:' + (i*14) + 'px;z-index:' + (3-i);
+    return u ? '<img src="' + esc2(u) + '" style="' + left + '" loading="lazy">' : '<div class="ph" style="' + left + '"></div>';
+  }).join('') + (list.length>3 ? '<span class="more">+' + (list.length-3) + '</span>' : '');
+  let sales=0, profit=0, fee=0;
+  list.forEach(it=>{ const p=num(it['販売価格']); sales+=p; const g=profitOf(it); if(g!=null) profit+=g; fee+=feeOf(it,p); });
+  const rate = sales>0 ? Math.round(profit/sales*1000)/10 : null;
+  const st = list[0]['ステータス']||'';
+  const pfName = list[0]['プラットフォーム']||'その他';
+  const pfMap = {'ヤフオク':'#D9A520','メルカリ':'#E8544F','ラクマ':'#E87BA6','メルカリShops':'#E8544F'};
+  const sd = soldDateOf(list[0]);
+  const buyer = String(list[0]['購入者']||'').trim();
+  el.innerHTML = '<div class="b-head">'
+    + '<div class="stack">' + thumbs + '</div>'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div class="b-title">📦 同梱 ' + list.length + '点</div>'
+    +   '<div class="i-mid" style="margin-top:4px">'
+    +     '<span class="tag st-' + esc2(st) + '">' + esc2(st) + '</span>'
+    +     '<span class="tag" style="background:' + (pfMap[pfName]||'#9AA096') + ';color:#fff;border:none">' + esc2(pfName) + '</span>'
+    +     '<span style="font-size:11px;color:var(--sub)">' + (sd? jpDate(sd) : '') + (buyer? ' ・ ' + esc2(buyer) : '') + '</span>'
+    +   '</div>'
+    +   '<div class="i-money"><span class="buy num">売上 ' + yen(sales) + '</span>'
+    +     '<span class="buy num">手数料 ' + yen(fee) + '</span>'
+    +     '<span class="profit num ' + (profit>=0?'plus':'minus') + '">' + (profit>=0?'+':'') + yen(profit) + (rate!=null? ' <small style="font-weight:400">(' + rate + '%)</small>' : '') + '</span></div>'
+    + '</div>'
+    + '<span class="b-chev">▼</span>'
+    + '</div>'
+    + '<div class="b-body"></div>';
+  const body = el.querySelector('.b-body');
+  list.forEach(it=> body.appendChild(card(it)));
+  const foot = document.createElement('div'); foot.className = 'b-foot';
+  const bEdit = document.createElement('button'); bEdit.textContent = '同梱を編集（送料・価格）';
+  bEdit.onclick = e=>{ e.stopPropagation(); openBundle(bid); };
+  foot.appendChild(bEdit);
+  body.appendChild(foot);
+  el.querySelector('.b-head').addEventListener('click', ()=> el.classList.toggle('open'));
+  return el;
+}
+
+/* ============ 同梱（まとめ売り） ============ */
+function bundleMembers(bid){ return items.filter(x=> String(x['同梱ID']||'')===String(bid)); }
+function apportion(total, prices){ // 販売価格の比率で割る（端数は一番高い商品へ）／全部0なら均等
+  const n = prices.length; if(!n) return [];
+  const sum = prices.reduce((a,b)=>a+b,0);
+  let out;
+  if(sum<=0){ const base = Math.floor(total/n); out = prices.map(()=>base); }
+  else out = prices.map(p=> Math.floor(total * p / sum));
+  const rest = total - out.reduce((a,b)=>a+b,0);
+  if(rest){ let k = 0; prices.forEach((p,i)=>{ if(p>prices[k]) k=i; }); out[k] += rest; }
+  return out;
+}
+function openBundle(bid){
+  if(!requireLogin()) return;
+  let list;
+  if(bid){ list = bundleMembers(bid); bundleEditing = String(bid); }
+  else { list = [...selected].map(id=> items.find(x=>String(x['ID'])===id)).filter(Boolean); bundleEditing = null; }
+  if(list.length < 2){ toast('同梱にするには2点以上選んでください'); return; }
+  bundleIds = list.map(x=>String(x['ID']));
+  $('bundleTitle').textContent = bid ? '同梱を編集' : '同梱で売れた商品';
+  $('btnBundleRelease').style.display = bid ? '' : 'none';
+  const esc2 = v => String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const img = it => { const u = String(it['画像']||'').trim() || localImg[String(it['ID'])] || ''; return u ? '<img src="' + esc2(u) + '">' : '<div class="ph"></div>'; };
+  $('bStrip').innerHTML = list.map(img).join('');
+  $('bCount').textContent = list.length + '点をまとめて1回で発送した取引として記録します';
+  const first = list[0];
+  $('b取引日').value = (bid ? (normDate(first['取引日']) || normDate(first['取引完了日'])) : '') || today();
+  $('bステータス').value = (bid && first['ステータス']==='取引完了') ? '取引完了' : '入金待ち';
+  $('b送料').value = bid ? (list.reduce((a,it)=>a+num(it['送料']),0) || '') : '';
+  $('b梱包資材').value = bid ? (list.reduce((a,it)=>a+num(it['梱包資材']),0) || '') : '';
+  $('b購入者').value = bid ? String(first['購入者']||'') : '';
+  $('bRows').innerHTML = list.map((it,i)=>
+    '<div class="brow" data-i="' + i + '">' + img(it)
+    + '<div><div class="bn">' + esc2(String(it['商品名']||'').trim() || '(名称未設定)') + '</div>'
+    + '<div class="frow" style="margin:6px 0 0"><label>販売価格（落札額）</label><input class="bPrice" type="number" inputmode="numeric" placeholder="0" value="' + (num(it['販売価格'])||'') + '"></div>'
+    + '<div class="bi">'
+    + '<div><div class="bk">仕入額</div><div class="bv num">' + yen(realCost(it)) + '</div></div>'
+    + '<div><div class="bk">手数料（自動）</div><div class="bv num bFeeV">—</div></div>'
+    + '<div><div class="bk">送料・資材の負担分</div><div class="bv num bExpV">—</div></div>'
+    + '<div><div class="bk">純利益</div><div class="bv num bProfV">—</div></div>'
+    + '</div></div></div>').join('');
+  document.querySelectorAll('#bRows .bPrice').forEach(inp=> inp.addEventListener('input', bundleCalc));
+  bundleCalc();
+  switchView('viewBundle');
+}
+function bundleCalcRows(){ // 画面の入力から各商品の確定値を作る
+  const list = bundleIds.map(id=> items.find(x=>String(x['ID'])===id)).filter(Boolean);
+  const prices = [...document.querySelectorAll('#bRows .bPrice')].map(inp=> num(inp.value));
+  const ship = apportion(num($('b送料').value), prices);
+  const pack = apportion(num($('b梱包資材').value), prices);
+  return list.map((it,i)=>{
+    const c = Object.assign({}, it);
+    c['販売価格'] = prices[i] || '';
+    c['送料'] = ship[i] || '';
+    c['梱包資材'] = pack[i] || '';
+    c['手数料'] = ''; // 商品ごとに率で自動計算
+    return c;
+  });
+}
+function bundleCalc(){
+  const rows = bundleCalcRows();
+  let sales=0, fee=0, profit=0;
+  rows.forEach((c,i)=>{
+    const p = num(c['販売価格']); const f = feeOf(c,p); const g = profitOf(c);
+    sales += p; fee += f; if(g!=null) profit += g;
+    const row = document.querySelector('#bRows .brow[data-i="' + i + '"]');
+    row.querySelector('.bFeeV').textContent = p>0? yen(f) : '—';
+    row.querySelector('.bExpV').textContent = yen(num(c['送料']) + num(c['梱包資材']));
+    const pv = row.querySelector('.bProfV');
+    pv.textContent = g==null? '—' : (g>=0?'+':'') + yen(g);
+    pv.style.color = g==null? '' : (g>=0? 'var(--ok)' : 'var(--bad)');
+  });
+  $('bSales').textContent = yen(sales);
+  $('bFee').textContent = yen(fee);
+  $('bProfit').textContent = (profit>=0?'+':'') + yen(profit);
+  $('bProfit').style.color = profit>=0? 'var(--ok)' : 'var(--bad)';
+}
+function saveBundle(){
+  if(!requireLogin()) return;
+  const rows = bundleCalcRows();
+  if(rows.some(c=> num(c['販売価格'])<=0)){ if(!confirm('販売価格が空の商品があります。このまま保存しますか？')) return; }
+  const bid = bundleEditing || ('BND-' + Date.now() + '-' + Math.random().toString(36).slice(2,6));
+  const d = $('b取引日').value || today();
+  const st = $('bステータス').value;
+  const buyer = $('b購入者').value.trim();
+  rows.forEach(c=>{
+    c['同梱ID'] = bid;
+    c['購入者'] = buyer;
+    c['取引日'] = d;
+    c['ステータス'] = st;
+    if(st==='取引完了'){ if(!normDate(c['取引完了日'])) c['取引完了日'] = d; }
+    else c['取引完了日'] = '';
+    if(!normDate(c['出品日'])) c['出品日'] = normDate(c['仕入日']) || '';
+  });
+  putItems(rows);
+  selected.clear(); bundleEditing = null; bundleIds = [];
+  toast('同梱 ' + rows.length + '点を保存しました');
+  switchView('viewList');
+  render();
+}
+function releaseBundle(){
+  if(!bundleEditing) return;
+  if(!requireLogin()) return;
+  if(!confirm('同梱を解除します。各商品は単品に戻ります（振り分けた送料などの数字はそのまま残ります）。よろしいですか？')) return;
+  const list = bundleMembers(bundleEditing).map(it=>{ const c = Object.assign({}, it); c['同梱ID'] = ''; return c; });
+  putItems(list);
+  bundleEditing = null; bundleIds = [];
+  toast('同梱を解除しました');
+  switchView('viewList');
+  render();
+}
+$('btnBundle').onclick = ()=> openBundle(null);
+$('btnSelClear').onclick = clearSelect;
+$('btnBundleSave').onclick = saveBundle;
+$('btnBundleCancel').onclick = ()=>{ bundleEditing = null; switchView('viewList'); render(); };
+$('btnBundleRelease').onclick = releaseBundle;
+['b送料','b梱包資材'].forEach(id=> $(id).addEventListener('input', bundleCalc));
+$('btnBundleOpen').onclick = ()=>{ const it = items.find(x=>String(x['ID'])===String(editingId)); if(it && it['同梱ID']) openBundle(it['同梱ID']); };
 function renderChips(){
   const sc = $('statusChips');
   sc.innerHTML = '';
@@ -1004,6 +1282,7 @@ function switchView(v){
   if(v==='viewSettings') $('navSettings').classList.add('on');
   if(v==='viewStats') $('navStats').classList.add('on');
   const listMode = v==='viewList';
+  if(!listMode){ $('selBar').classList.remove('on'); document.body.style.paddingBottom = ''; } else updateSelBar();
   $('hdr').style.display = listMode? '' : 'none';
   $('statusChips').style.display = listMode? '' : 'none';
   $('savedChips').style.display = listMode? '' : 'none';
@@ -1020,6 +1299,7 @@ function openForm(id){
   $('btnDelete').style.display = it? '' : 'none';
   $('btnDup').style.display = it? '' : 'none';
   $('bulkCard').style.display = it? 'none' : '';
+  $('btnBundleOpen').style.display = (it && it['同梱ID'])? '' : 'none';
   const get = k => it? (it[k]??'') : '';
   ['商品名','仕入れ元','備考','画像'].forEach(k=> $('f'+k).value = get(k));
   formPendingBlob = null;
@@ -1075,6 +1355,7 @@ function saveItem(){
   if(editingId){
     const old = items.find(x=>String(x['ID'])===String(editingId));
     if(old && old['更新日時']) it['更新日時'] = old['更新日時'];
+    if(old){ it['同梱ID'] = old['同梱ID'] || ''; it['購入者'] = old['購入者'] || ''; } // 同梱の紐づけは単品編集で消さない
   }
   const blob = formPendingBlob;
   if(blob) it['画像'] = ''; // 送信完了後にURLが入る
@@ -1356,6 +1637,7 @@ async function swipeDup(it){
     c['取引日'] = '';
     c['取引完了日'] = '';
     c['手数料'] = '';
+    c['同梱ID'] = ''; c['購入者'] = '';
     copies.push(c);
   }
   if(!requireLogin()) return;
