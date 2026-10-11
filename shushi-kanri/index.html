@@ -48,8 +48,8 @@ header{background:var(--indigo);color:#fff;padding:10px 14px calc(10px);position
 .chip.on{background:var(--indigo);border-color:var(--indigo);color:#fff}
 .chip.save{border-style:dashed;color:var(--indigo)}
 .chip .x{margin-left:6px;opacity:.6}
-.calcMode,.calcTax{background:#fff;color:var(--sub)}
-.calcMode.on,.calcTax.on{background:var(--indigo);color:#fff}
+.calcMode,.calcTax,.bMode{background:#fff;color:var(--sub)}
+.calcMode.on,.calcTax.on,.bMode.on{background:var(--indigo);color:#fff}
 .calcQuick{padding:4px 10px;font-size:12px}
 
 /* ---- summary bar ---- */
@@ -261,8 +261,8 @@ nav button.on{color:var(--indigo);font-weight:700}
       <h3>各商品の販売価格</h3>
       <div class="frow" style="margin-bottom:8px">
         <span style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff">
-          <button type="button" class="calcMode bMode on" data-bmode="each" style="padding:8px 12px;font-size:13px">1点ずつ入力（ヤフオク向け）</button>
-          <button type="button" class="calcMode bMode" data-bmode="total" style="padding:8px 12px;font-size:13px">合計で入力（メルカリ向け）</button>
+          <button type="button" class="bMode on" data-bmode="each" style="padding:8px 12px;font-size:13px">1点ずつ入力（ヤフオク向け）</button>
+          <button type="button" class="bMode" data-bmode="total" style="padding:8px 12px;font-size:13px">合計で入力（メルカリ向け）</button>
         </span>
       </div>
       <div id="bTotalBox" style="display:none;margin-bottom:6px">
